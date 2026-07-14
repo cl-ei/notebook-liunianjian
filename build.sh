@@ -1,1 +1,1 @@
-docker build -t notebook_madliar_img:latest .
+docker build -t calom1992/notebook-liunianjian:latest .

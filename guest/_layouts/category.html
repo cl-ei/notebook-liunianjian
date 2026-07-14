@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}<title>文章分类 Madliar</title>{% endblock %}
+
+{% block page_body %}
+<div class="second-title">分类</div>
+<div class="category-selector">
+    <h4 class="category-group-h"><i class="fa fa-th-list" aria-hidden="true"></i>所有分类</h4>
+    <div class="category-container">
+        {% for category_name, article_list in categories.items()  %}
+        <a href="#{{ category_name }}">{{ category_name }}（{{ article_list | length }}）</a>
+        {% endfor %}
+    </div>
+</div>
+
+{% for category_name, article_list in categories.items() %}
+<div class="category-group">
+    <h4 id="{{ category_name }}" class="category-group-h"><i class="fa fa-quote-right" aria-hidden="true"></i>{{ category_name }}</h4>
+    {% for article in article_list %}
+    <div class="article-bar">
+        <span class="article-date">{{ article.fm.date }}</span>
+        <a href="{{ article.dest_url }}">{{ article.fm.title }}</a>
+    </div>
+    {% endfor %}
+</div>
+{% endfor %}
+
+{% endblock %}

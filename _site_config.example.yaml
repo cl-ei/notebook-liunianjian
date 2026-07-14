@@ -1,0 +1,132 @@
+# 站点源配置文件
+#
+# 本文件定义静态站点生成器的全局规则，当用户根目录的右键菜单「生成站点」选项被触发后，系统将按以下
+#    流程执行构建：
+# 1. 检查并加载该目录下的 _site_config.yaml，作为静态站点构建的全局默认配置；提取 build.source_root
+#     作为构建的参考根目录 $source_root
+# 2. 扫描 $source_root/_posts 目录下的所有 Markdown 文件；
+# 3. 解析每个 Markdown 文件头部的 Front Matter（FM）元数据块，提取标题、日期、标签等信息；
+# 4. 根据 FM 的 layout 字段或 build.default_layout 规则，在 $source_root/_layouts 目录下
+#    寻找匹配的 jinja2 模板；
+# 5. 调用 Markdown 渲染管线（集成 KaTeX 公式、Pygments 代码高亮、图片短哈希重命名）生成 HTML内容；
+# 6. 按照 build.permalink （或页面的 FM 中 permalink 字段定义的）规则生成页面 URL，
+#    将 HTML 输出至 “$source_root/_build” 目录下，并按照引用关系自动拷贝图片资源到相对路径；
+# 7. 拷贝 build.statics_dir 定义的静态目录到 $source_root/_build/；
+# 8. 系统不会自动处理首页、标签页、归档页、站点地图等聚合资源。如需生成这些页面，需要在
+#    $source_root/_posts/ 下创建对应的 .md 文件（如 index.md），并在其 FM 中指定对应的模板文件
+#   （如 layout: index），系统会将聚合数据注入模板。模板文件需放置在 _layouts/ 目录下。关于注入方式，
+#   请参照尾部的说明。
+# 9. 以 $source_root/_build 作为参考根目录，启动 http 静态代理服务器，映射到 URL：
+#    /notebook/publish/$user/$service
+#    其中，$user 和 $service 分别为注册用户的 email 的用户名和域名的部分，（）如：
+#    guest@madliar.com => guest, madliar.com
+#
+# * Front Matter 是最早由 Jekyll 的创始人 Tom Preston-Werner 引入到静态站点生成器领域的一种
+#    元信息定义格式，在文章头部以单独行“---”开始，到下一个“---”行结束的yaml配置块。FM 的完整语法，
+#    可参阅Jekyll官方文档：https://jekyllrb.com/docs/front-matter/
+# ------------------------------------------------------------------------------
+
+# Jekyll目录结构对照表
+# 本项目目录结构与原生Jekyll有限兼容：
+# Jekyll _config.yml        → 本文件（_site_config.yaml）
+# Jekyll _posts/            → $source_root/_posts/（文章、独立页面存放目录）
+# Jekyll _layouts/          → $source_root/_layouts/（Jinja2 模板存放目录）
+# Jekyll permalink规则       → build.permalink（占位符）
+# Jekyll _site/             → $source_root/_build/ （构建产物）
+# ------------------------------------------------------------------------------
+
+# 站点元数据
+# 用途：用于SEO标签、RSS/Atom订阅源、站点地图生成及全局模板上下文注入
+# 说明：除标注“可选”外，所有字段均为必填项
+# ------------------------------------------------------------------------------
+site:
+  name: "流年笺"                    # 站点名称，用于页面标题、订阅源头信息、og:site_name 元标签
+  lang: "zh-CN"                    # 可选，HTML lang 属性值，缺省默认值为 zh-CN
+  timezone: "Asia/Shanghai"        # 可选，IANA 时区名称，用于统一日期格式化规则
+
+# ------------------------------------------------------------------------------
+# 构建规则
+# 用途：控制输出目录结构、URL生成逻辑、默认模板匹配规则
+# 安全限制：permalink仅支持预定义占位符
+# ------------------------------------------------------------------------------
+build:
+  # 构建静态站点的参考根目录
+  source_root: "/guest"
+
+  # 静态资源目录（相对于用户根目录）。
+  # 构建时，该目录下的文件将映射至 $source_root/_build 根目录。用于存放 CSS、JS、字体等全局资源，
+  # 引用时必须使用绝对路径。示例：
+  # - 源文件存在于用户目录 $source_root/_statics/js/main.js
+  # - 构建后：$source_root/_build/js/main.js
+  statics_dir: "/guest/_statics"
+
+  # 文章页面的 URL 生成规则，支持的预定义占位符：
+  # - :slug：文章唯一标识（优先取 FM 的 slug、title、subtitle 字段，无则取文件名, 转拼音后的字符串）
+  # - :year：文章发布年份（取自 FM 的 date 字段，无则取文件最后修改时间）
+  # - :month：文章发布月份（取自 FM 的 date 字段，无则取文件最后修改时间）
+  # - :date：文章发布日期（取自 FM 的 date 字段，无则取文件最后修改时间）
+  # 示例：
+  #  - 配置为 /posts/:slug/ 时，文章的相对路径为/posts/<slug>/index.html
+  #  - 配置为 /posts/:slug 时，文章的相对路径为/posts/<slug>.html
+  permalink: "/posts/:date/:slug/"
+
+  # 当 md 文件中未指定 layout 参数时，默认渲染模板
+  default_layout: "post"
+
+  # 站点部署基路径（即预览服务器映射到 _build 的 URL 前缀）
+  # 构建时，所有 Markdown 中的绝对路径资源引用（如 ![](/a.jpg)）
+  # 都会被加上此前缀，生成 src="$base_path/a.jpg"
+  # 为空字符串时表示部署在域名根路径
+  # 这里只针对 markdown 标签 ![]() 进行前缀注入，原生HTML标签（<img>、<link>、<script>等）一律不做处理
+  base_path: "/notebook/publish/t2/tt.com"
+
+# ------------------------------------------------------------------------------
+# 功能开关
+# 用途：定义全局功能默认状态，可被单篇文章Front Matter字段覆盖
+# 性能说明：禁用的功能不会给生成的静态文件增加任何运行时开销
+# ------------------------------------------------------------------------------
+features:
+  # 全局目录（TOC）开关，默认启用；单篇可通过 FM 字段 x-toc: true/false 启用/关闭
+  toc: true
+
+# * 模板变量注入说明：渲染后端基于 Jinja2，所有模板变量均以顶层变量形式注入：
+#
+# - user:         str，对应用户 email 中用户名的部分
+# - service:      str，对应用户 email 中用域名的部分
+# - email:        str，对应用户的 email
+# - site:         dict，对应配置文件中 `site` 区块的全部配置
+# - categories:   dict，键为分类（category）名，值为包含该分类下所有文章的列表（ArticleMeta）
+# - tags:         dict，键为标签名，值为包含该标签下所有文章的列表（ArticleMeta）
+# - this:         Article，当前正在渲染的文章对象
+# - $layout_name: list[Article]，动态注入；键名为文章的 layout 值（如 `post`），
+#                值为使用该布局的所有文章列表（完整 Article 对象）
+#
+# Article 对象结构：
+# {
+#     'code_css': str,        # 代码高亮 CSS 类名
+#     'dest_url': str,        # 最终访问 URL
+#     'fm': dict,             # Front Matter（详见下文）
+#     'images': list[str],    # 文章引用的图片路径列表
+#     'index': int,           # 在列表中的排序索引
+#     'raw_content': str,     # 原始 Markdown 源码
+#     'rendered_html': str,   # 渲染后的 HTML 内容
+#     'src_path': str,        # 源文件相对路径
+#     'toc': list[dict],      # 目录结构数据
+# }
+#
+# fm (Front Matter) 示例：
+# {
+#     'date': '2026-07-16',
+#     'layout': 'default',
+#     'title': '文章标题',
+#     'subtitle': '文章副标题'
+# }
+#
+# ArticleMeta 说明：
+# 为避免数据冗余，categories / tags 等聚合列表中使用的均为轻量对象（ArticleMeta），
+# 即在 Article 基础上移除了 raw_content, images, rendered_html, src_path, toc 字段。
+#
+# 调试辅助：
+# 由于 Jinja2 无单根上下文概念，可通过注入的 `_ctx` 探针查看当前作用域所有变量：
+# {{ _ctx | pprint }}
+# {{ _ctx | tojson(indent=2) }}

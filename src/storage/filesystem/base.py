@@ -45,3 +45,9 @@ class StorageBackend(ABC):
         """
         return (size, mtime)
         """
+
+    @abstractmethod
+    async def copy(self, src: str, dst) -> None:
+        """
+        copy file
+        """

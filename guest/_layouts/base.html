@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-cmn-Hans">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    {% block title %}
+    <title>流年笺</title>
+    {% endblock %}
+
+    {% block description %}
+    <meta name="description" content="Madliar的博客，记录日常、技术、感悟">
+    <meta name="author" content="CL">
+    <meta name="keywords" content="MADLIAR, CL, Madliar的博客, 技术博客, 编程笔记"/>
+    {% endblock %}
+
+    {% block extra_headers %}
+    <link rel="stylesheet" href="new_blog.css">
+    {% endblock %}
+
+    <link rel="stylesheet" href="https://madliar.com/static/font-awesome-4-7-0/css/font-awesome.min.css">
+</head>
+
+<body>
+<div class="inner-body preload">
+    <div id="header">
+        <div class="pixel-font" id="header-title">MADL!AR</div>
+        <div class="pixel-font">Code is cheap, show me the PPT!</div>
+        <div class="nav">
+        <span class="nav-item" id="home">
+            <a href="/notebook/publish/{{ user }}/{{ service }}/index.html"><i class="fa fa-home" aria-hidden="true"></i>首页</a>
+        </span>
+            <span class="nav-item" id="category">
+            <a href="/notebook/publish/{{ user }}/{{ service }}/category.html"><i class="fa fa-list-alt" aria-hidden="true"></i>分类</a>
+        </span>
+            <span class="nav-item" id="Fragment">
+            <a href="/notebook"><i class="fa fa-pencil-square-o" aria-hidden="true"></i>流年笺</a>
+        </span>
+            <span class="nav-item" id="about">
+            <a href="/notebook/publish/{{ user }}/{{ service }}/about.html"><i class="fa fa-info" aria-hidden="true"></i>关于</a>
+        </span>
+        </div>
+    </div>
+    <div id="page-body">
+        {% block page_body %}{% endblock %}
+    </div>
+    <div id="footer" class="copyright center">
+        <p><span>© 2014 - <span id="footer-current-year"></span> madliar.com</span>&nbsp|&nbsp<span><a href="http://beian.miit.gov.cn/" target="_blank">陕ICP备16003242号</a></span>&nbsp|&nbsp<span><a href="/old">古老记忆</a></span></p>
+    </div>
+</div>
+<script>document.getElementById("footer-current-year").textContent = new Date().getFullYear();</script>
+<script>
+    document.onreadystatechange = function(){
+        if (document.readyState === 'complete') {
+            document.getElementsByClassName('preload')[0].classList.remove('preload');
+        }
+    }
+</script>
+</body>
+</html>

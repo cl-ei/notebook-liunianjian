@@ -46,14 +46,16 @@
         ::-webkit-scrollbar-thumb:hover { background: #adb5bd; }
 
         /* ========== 编辑器 ========== */
-        textarea.editor {
+        textarea.editor, pre code {
             font-family:
-                    'JetBrains Mono',
-                    'Sarasa Mono SC',
-                    'Noto Sans Mono CJK SC',
-                    'Microsoft YaHei',
-                    'PingFang SC',
-                    monospace;
+                'JetBrains Mono',
+                'Sarasa Mono SC',
+                'Noto Sans Mono CJK SC',
+                'Microsoft YaHei',
+                'PingFang SC',
+                monospace;
+        }
+        textarea.editor {
             font-size: 14px;
             line-height: 1.7;
             tab-size: 4;
@@ -135,9 +137,6 @@
     </div>
 
     <div class="absolute right-4 flex items-center space-x-2">
-        <button style="display: none;" @click="showSearch = !showSearch" class="p-2 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-all duration-150" title="搜索 (Ctrl+K)">
-            <i class="fas fa-search text-sm"></i>
-        </button>
         <div class="flex items-center bg-gray-100 rounded-lg p-0.5 ml-1">
             <button @click="viewMode = 'single'" :class="viewMode === 'single' ? 'bg-white text-blue-500 shadow-sm' : 'text-gray-400 hover:text-gray-600'" class="px-2.5 py-1.5 rounded-md text-xs transition-all duration-150" title="单页视图">
                 <i class="fas fa-window-maximize"></i>
@@ -164,22 +163,13 @@
                     </div>
                 </div>
 
-                <!-- 1. 修改密码 -->
                 <button @click="openChangePwdModal()" type="button" class="w-full flex items-center space-x-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors">
                     <i class="fas fa-key text-gray-400 w-4"></i>
                     <span>修改密码</span>
                 </button>
 
-                <!-- 2. 关于 -->
-                <button @click="openAboutModal()" type="button" class="w-full flex items-center space-x-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors">
-                    <i class="fas fa-info-circle text-gray-400 w-4"></i>
-                    <span>关于</span>
-                </button>
-
-                <!-- 分割线 -->
                 <div class="border-t border-gray-100 my-1"></div>
 
-                <!-- 3. 退出登录 -->
                 <button @click="logout()" type="button" class="w-full flex items-center space-x-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors">
                     <i class="fas fa-sign-out-alt w-4"></i>
                     <span>退出登录</span>
@@ -316,7 +306,7 @@
                                     }" class="text-[10px]"></i>
                                         <span class="text-xs font-medium text-gray-700">解析日志</span>
                                     </div>
-                                    <div class="text-xs text-gray-600 font-mono bg-gray-50 p-3 rounded-lg
+                                    <div class="text-xs text-gray-600 bg-gray-50 p-3 rounded-lg
                                     max-h-48 overflow-y-auto
                                     whitespace-pre-line break-words leading-relaxed"
                                          x-html="currentFile.fmLog || '格式解析正确'">
@@ -412,36 +402,6 @@ cover: /assets/images/cover.jpg
         </div>
     </main>
 </div>
-
-<!-- ============================
-     [MODAL] 搜索弹窗
-     ============================ -->
-<template x-teleport="body">
-    <div x-show="showSearch" x-cloak @keydown.escape.window="showSearch = false" class="fixed inset-0 z-[var(--z-normal-modal)] overflow-y-auto">
-        <div class="fixed inset-0 bg-gray-900/30 backdrop-blur-sm" @click="showSearch = false"></div>
-        <div class="flex min-h-full items-start justify-center pt-24 p-4">
-            <div x-show="showSearch" x-transition class="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-gray-100" @click.stop>
-                <div class="flex items-center border-b border-gray-100 px-4">
-                    <i class="fas fa-search text-gray-300"></i>
-                    <input type="text" placeholder="搜索笔记... (Ctrl+K)" class="w-full bg-transparent border-none text-gray-800 px-3 py-4 focus:outline-none text-sm placeholder-gray-300" x-ref="searchInput" @keydown.enter="doSearch()">
-                    <kbd class="hidden sm:inline-flex items-center px-2 py-1 bg-gray-100 rounded text-[10px] text-gray-400 font-mono">ESC</kbd>
-                </div>
-                <div class="p-2 max-h-64 overflow-y-auto">
-                    <div class="px-3 py-1.5 text-[11px] text-gray-400 font-bold uppercase tracking-wider">最近搜索</div>
-                    <div class="px-3 py-2 hover:bg-blue-50 rounded-lg cursor-pointer text-sm text-gray-700 transition-colors flex items-center">
-                        <i class="fas fa-clock text-gray-300 mr-2 text-xs"></i>API 设计文档
-                    </div>
-                    <div class="px-3 py-2 hover:bg-blue-50 rounded-lg cursor-pointer text-sm text-gray-700 transition-colors flex items-center">
-                        <i class="fas fa-clock text-gray-300 mr-2 text-xs"></i>项目会议纪要
-                    </div>
-                    <div class="px-3 py-2 hover:bg-blue-50 rounded-lg cursor-pointer text-sm text-gray-700 transition-colors flex items-center">
-                        <i class="fas fa-clock text-gray-300 mr-2 text-xs"></i>Go 并发编程笔记
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</template>
 
 <!-- ============================
      [TOAST] 堆叠通知
@@ -903,257 +863,85 @@ cover: /assets/images/cover.jpg
         </div>
     </template>
 </template>
-<!-- ============================
-     [MODAL] 关于弹窗
-     ============================ -->
-<template x-teleport="body">
-    <div x-show="showAboutModal" x-cloak class="fixed inset-0 z-[var(--z-overlay)] overflow-y-auto">
-        <!-- 遮罩 -->
-        <div x-show="showAboutModal" x-transition class="fixed inset-0 bg-black/50 backdrop-blur-sm" @click="closeAboutModal()"></div>
 
-        <!-- 弹窗主体 -->
-        <div class="flex min-h-full items-center justify-center p-4">
-            <div x-show="showAboutModal" x-transition class="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden" @click.stop @keydown.escape="closeAboutModal()">
-                <!-- 标题栏 -->
-                <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-                    <div class="flex items-center space-x-3">
-                        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-cyan-400 flex items-center justify-center">
-                            <i class="fas fa-info-circle text-white w-4"></i>
-                        </div>
-                        <h3 class="text-lg font-bold text-gray-800">关于</h3>
-                    </div>
-                    <button @click="closeAboutModal()" class="p-2 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-
-                <!-- 内容区 -->
-                <div class="p-6 space-y-5">
-                    <!-- 基本信息 -->
-                    <div class="flex flex-col items-center py-2">
-                        <div class="w-14 h-14 mb-3 flex items-center justify-center">
-                            <i class="fa-solid fa-scroll text-3xl"></i>
-                        </div>
-                        <div class="flex items-center justify-center">
-                            <span class="font-bold text-gray-800 text-sm tracking-wide">流年笺</span>
-                        </div>
-                    </div>
-                    <!-- 开源信息 - 统一卡片样式和间距 -->
-                    <div class="bg-gray-50 rounded-xl p-4 border border-gray-100 space-y-3">
-                        <p class="text-sm text-gray-700 leading-relaxed">
-                            这是一个开源、轻量但功能强大的云笔记本，支持文章分享、静态站点生成、底层存储分离。许可证范围内可自由修改、分发。
-                        </p>
-                        <div class="flex items-center justify-between">
-                            <span class="text-sm text-gray-600">开源地址：</span>
-                            <a href="https://github.com/cl-ei/notebook.madliar" target="_blank" rel="noopener noreferrer" class="text-sm text-blue-500 hover:underline flex items-center">
-                                GitHub 仓库
-                                <i class="fas fa-external-link-alt ml-1 text-xs"></i>
-                            </a>
-                        </div>
-                        <div class="flex items-center justify-between">
-                            <span class="text-sm text-gray-600">许可证：</span>
-                            <span class="text-sm text-gray-700">MIT License</span>
-                        </div>
-                    </div>
-                    <div class="bg-gray-50 rounded-xl p-4 border border-gray-100">
-                        <h5 class="text-sm font-medium text-center text-gray-700 mb-3">核心技术栈</h5>
-                        <div class="flex flex-wrap gap-2">
-                            <span class="inline-flex items-center px-2.5 py-1 bg-gray-100 text-gray-700 text-xs rounded-full border border-gray-200">
-                                <i class="fa-brands fa-python mr-1.5"></i>Python 3.13+
-                            </span>
-                            <span class="inline-flex items-center px-2.5 py-1 bg-gray-100 text-gray-700 text-xs rounded-full border border-gray-200">
-                                <i class="fa-solid fa-bolt mr-1.5"></i>FastAPI
-                            </span>
-                            <span class="inline-flex items-center px-2.5 py-1 bg-gray-100 text-gray-700 text-xs rounded-full border border-gray-200">
-                                <i class="fa-solid fa-mountain mr-1.5"></i>Alpine.js
-                            </span>
-                            <span class="inline-flex items-center px-2.5 py-1 bg-gray-100 text-gray-700 text-xs rounded-full border border-gray-200">
-                                <i class="fa-solid fa-wind mr-1.5"></i>Tailwind CSS
-                            </span>
-                            <span class="inline-flex items-center px-2.5 py-1 bg-gray-100 text-gray-700 text-xs rounded-full border border-gray-200">
-                                <i class="fa-solid fa-code mr-1.5"></i>Marked.js
-                            </span>
-                            <span class="inline-flex items-center px-2.5 py-1 bg-gray-100 text-gray-700 text-xs rounded-full border border-gray-200">
-                                <i class="fa-solid fa-shield-halved mr-1.5"></i>DOMPurify
-                            </span>
-                            <span class="inline-flex items-center px-2.5 py-1 bg-gray-100 text-gray-700 text-xs rounded-full border border-gray-200">
-                                diff-match-patch
-                            </span>
-                            <span class="inline-flex items-center px-2.5 py-1 bg-gray-100 text-gray-700 text-xs rounded-full border border-gray-200">
-                                <i class="fa-brands fa-font-awesome mr-1.5"></i>Font Awesome
-                            </span>
-                        </div>
-                    </div>
-                    <!-- ============================
-                         字体致谢模块 - 统一卡片样式
-                         ============================ -->
-                    <section class="about-section">
-                        <div x-data="{ fontOpen: false }" class="border border-gray-100 rounded-xl overflow-hidden bg-white">
-                            <!-- 头部：可点击展开/收起 -->
-                            <button
-                                    @click="fontOpen = !fontOpen"
-                                    class="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
-                            >
-                                <div class="flex items-center space-x-3">
-                                    <i class="fas fa-font text-blue-500"></i>
-                                    <h3 class="text-base font-semibold text-gray-800">所用字体</h3>
-                                    <span class="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">全离线</span>
-                                </div>
-                                <i :class="fontOpen ? 'fas fa-chevron-up' : 'fas fa-chevron-down'" class="text-gray-400 text-sm transition-transform"></i>
-                            </button>
-
-                            <!-- 展开内容 -->
-                            <div x-show="fontOpen" x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0 h-0" x-transition:enter-end="opacity-100 h-auto" x-transition:leave="transition ease-in duration-100" x-transition:leave-start="opacity-100 h-auto" x-transition:leave-end="opacity-0 h-0" class="border-t border-gray-100">
-                                <div class="p-4 space-y-4">
-                                    <!-- 说明文字 -->
-                                    <p class="text-sm text-gray-600 leading-relaxed">
-                                        本项目UI西文采用Rasmus Andersson设计的Inter，代码区采用JetBrains推出的JetBrains Mono。
-                                        <strong>特别致谢LXGW开源组基于Klee One扩充开发的霞鹜文楷，为中文正文阅读提供了兼具人文温度与屏幕可读性的优质选择。</strong>
-                                        所有字体均遵循SIL Open Font License协议。
-                                    </p>
-
-                                    <!-- 字体列表：每个字体一个卡片 -->
-                                    <div class="space-y-3">
-                                        <!-- 1. Inter（UI西文） -->
-                                        <div class="p-3 bg-gray-50 rounded-lg border border-gray-100">
-                                            <div class="flex items-center justify-between mb-2">
-                                                <div class="flex items-center space-x-2">
-                                                    <span class="font-medium text-gray-800" style="font-family: 'Inter', sans-serif;">Inter</span>
-                                                    <span class="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full">UI 西文</span>
-                                                </div>
-                                                <span class="text-xs text-gray-500">400/500/600/700</span>
-                                            </div>
-                                            <div class="text-sm" style="font-family: 'Inter', sans-serif; font-weight: 400;">
-                                                ABCDEFGHIJKLMNOPQRSTUVWXYZ · abcdefghijklmnopqrstuvwxyz · 0123456789 · 笔记 / Front Matter / 发布
-                                            </div>
-                                        </div>
-
-                                        <!-- 2. 霞鹜文楷（中文正文） -->
-                                        <div class="p-3 bg-gray-50 rounded-lg border border-gray-100">
-                                            <div class="flex items-center justify-between mb-2">
-                                                <div class="flex items-center space-x-2">
-                                                    <span class="font-medium text-gray-800" style="font-family: 'LXGW WenKai', serif;">霞鹜文楷</span>
-                                                    <span class="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs rounded-full">中文正文</span>
-                                                </div>
-                                                <span class="text-xs text-gray-500">400</span>
-                                            </div>
-                                            <div class="text-sm" style="font-family: 'LXGW WenKai', serif; font-weight: 400; line-height: 1.7;">
-                                                春江潮水连海平，海上明月共潮生。滟滟随波千万里，何处春江无月明！· 这是一段中文笔记正文示例，展示字体的实际渲染效果。
-                                            </div>
-                                        </div>
-
-                                        <!-- 3. JetBrains Mono（代码等宽） -->
-                                        <div class="p-3 bg-gray-50 rounded-lg border border-gray-100">
-                                            <div class="flex items-center justify-between mb-2">
-                                                <div class="flex items-center space-x-2">
-                                                    <span class="font-medium text-gray-800" style="font-family: 'JetBrains Mono', monospace;">JetBrains Mono</span>
-                                                    <span class="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full">代码等宽</span>
-                                                </div>
-                                                <span class="text-xs text-gray-500">400/500</span>
-                                            </div>
-                                            <div class="text-sm" style="font-family: 'JetBrains Mono', monospace; font-weight: 400;">
-                                                <span class="text-gray-500">// Front Matter 示例</span><br>
-                                                ---<br>
-                                                title: "字体说明"<br>
-                                                date: 2026-07-12<br>
-                                                tags: [Inter, 霞鹜文楷, JetBrains Mono]
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </section>
-
-                    <!-- 版权信息 - 调整间距和样式 -->
-                    <div class="pt-2">
-                        <p class="text-xs text-gray-400 text-center"
-                           x-init="this.aboutYear = new Date().getFullYear()"
-                           x-text="`© ${aboutYear} 流年笺 · 保留所有权利`">
-                        </p>
-                    </div>
-                </div>
-
-                <!-- 底部按钮 -->
-                <div class="px-6 py-4 border-t border-gray-100 flex justify-center">
-                    <button @click="closeAboutModal()" class="px-6 py-2.5 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors">
-                        我知道了
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-</template>
 <!-- ============================
      [MODAL] 发布博客（Material 蓝配色版）
      ============================ -->
 <template x-teleport="body">
-    <div x-show="blogPublishModalOpen" x-cloak
-         @click.away="closeBlogPublishModal()"
-         @keydown.escape.window="closeBlogPublishModal()"
+    <div x-show="siteGenerateModalOpen" x-cloak
+         @click.away="closeSiteGenerateModal()"
+         @keydown.escape.window="closeSiteGenerateModal()"
          class="fixed inset-0 z-[var(--z-normal-modal)] overflow-y-auto">
         <!-- 遮罩 -->
-        <div x-show="blogPublishModalOpen" x-transition.opacity class="fixed inset-0 bg-black/40 backdrop-blur-sm"></div>
+        <div x-show="siteGenerateModalOpen" x-transition.opacity class="fixed inset-0 bg-black/40 backdrop-blur-sm"></div>
         <!-- 弹窗主体 -->
         <div class="flex min-h-full items-center justify-center p-4">
-            <div x-show="blogPublishModalOpen" x-transition
+            <div x-show="siteGenerateModalOpen" x-transition
                  class="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
                 <!-- 标题栏 -->
                 <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
                     <div class="flex items-center space-x-3">
-                        <!-- ✅ 紫色purple-50 → 蓝色blue-50（Material Blue 50） -->
                         <div class="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
-                            <!-- ✅ 紫色purple-500 → 蓝色blue-500（Material Blue 500，和你现有按钮主色一致） -->
-                            <i class="fas fa-rocket text-blue-500"></i>
+                            <i class="fas fa-globe text-blue-500"></i>
                         </div>
-                        <h3 class="text-lg font-bold text-gray-800">发布博客</h3>
+                        <h3 class="text-lg font-bold text-gray-800">生成站点</h3>
                     </div>
-                    <button @click="closeBlogPublishModal()" class="p-2 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors">
+                    <button @click="closeSiteGenerateModal()" class="p-2 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
                 <!-- 内容区 -->
-                <div class="p-6 space-y-5">
-                    <!-- 版本信息 -->
-                    <div class="bg-gray-50 rounded-xl p-4">
-                        <div class="flex justify-between items-center mb-2">
-                            <h4 class="text-sm font-semibold text-gray-700">当前版本</h4>
-                            <span x-show="blogInfo.version" class="text-xs text-gray-400" x-text="'版本号: ' + blogInfo.version"></span>
+                <div class="p-10 space-y-5">
+                    <!-- 生成说明 -->
+                    <div class="mb-8">
+                        <div class="flex justify-between items-center mb-3">
+                            <h4 class="text-sm font-semibold text-gray-700">关于站点生成</h4>
+                            <span class="text-xs text-gray-400">v2.1.0</span>
                         </div>
-                        <p class="text-sm text-gray-600" x-text="blogInfo.version ? '博客已发布，点击下方按钮查看或重新发布。' : '尚未发布过博客，点击发布将生成您的博客首页。'"></p>
+                        <div class="space-y-3 text-sm text-gray-600">
+                            <p>此操作将启动完整的站点构建流程，系统会根据相关配置自动生成静态站点资源。</p>
+                            <div class="flex items-start space-x-2">
+                                <i class="fas fa-info-circle text-blue-500 mt-0.5"></i>
+                                <p>构建过程将在后台执行，可以在输出目录的 <code class="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">build.log</code> 文件中查看详细的构建日志与进度。</p>
+                            </div>
+                            <div class="flex items-start space-x-2">
+                                <i class="fas fa-file-alt text-blue-500 mt-0.5"></i>
+                                <p>若需要了解站点生成的配置规则与参数说明，请查阅游客文件夹内的 <code class="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">_site_config.example.yaml</code> 参考文档。</p>
+                            </div>
+                        </div>
                     </div>
-                    <!-- 博客地址 -->
+                    <!-- 站点访问地址 -->
                     <div>
-                        <label class="text-sm font-medium text-gray-700 block mb-2">博客首页地址</label>
+                        <label class="text-sm font-medium text-gray-700 block mb-2">站点访问地址</label>
                         <div class="flex items-center space-x-2">
                             <input type="text" readonly
-                                   :value="blogInfo.homepageUrl"
+                                   :value="userSiteAccessUrl"
                                    class="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-500 focus:outline-none"
-                                   placeholder="发布后生成地址">
-                            <button @click="window.open(blogInfo.homepageUrl, '_blank')"
-                                    :disabled="!blogInfo.homepageUrl"
+                                   placeholder="生成完成后将在此处显示访问地址">
+                            <button @click="window.open(userSiteAccessUrl, '_blank')"
+                                    :disabled="!userSiteAccessUrl"
                                     class="px-5 py-2.5 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white text-sm font-medium rounded-xl transition-colors">
-                                打开主页
+                                访问站点
                             </button>
                         </div>
+                        <p class="mt-2 text-xs text-gray-500">生成完成后，您可点击上方按钮预览您的站点。</p>
                     </div>
                 </div>
                 <!-- 底部按钮 -->
                 <div class="px-6 py-4 border-t border-gray-100 flex justify-end space-x-3">
-                    <button @click="closeBlogPublishModal()"
+                    <button @click="closeSiteGenerateModal()"
                             class="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-xl transition-colors">
                         取消
                     </button>
-                    <!-- ✅ 紫色purple-500/600 → 蓝色blue-600/700（Material Blue 600/700，和你现有蓝色按钮完全统一） -->
-                    <button @click="startBlogPublish()"
-                            :disabled="blogPublishLoading"
-                            class="flex items-center justify-center space-x-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl transition-colors disabled:opacity-70 disabled:cursor-not-allowed min-w-[100px]">
+                    <button @click="startSiteGeneration().catch(() => {})"
+                            :disabled="siteGenerateLoading"
+                            class="flex items-center justify-center space-x-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl transition-colors disabled:opacity-70 disabled:cursor-not-allowed min-w-[120px]">
                         <!-- 加载 Spinner -->
-                        <svg x-show="blogPublishLoading" class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <svg x-show="siteGenerateLoading" class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                         </svg>
-                        <span x-text="blogPublishLoading ? '发布中...' : '立即发布'"></span>
+                        <span x-text="siteGenerateLoading ? '生成中...' : '立即生成'"></span>
                     </button>
                 </div>
             </div>
@@ -1202,7 +990,7 @@ cover: /assets/images/cover.jpg
 
             viewMode: 'split',
             sidebarCollapsed: false,
-            showSearch: false,
+
             currentFile: null,          // {id, base, version, baseContent, fmStatus, fmLog}
             editorContent: '',
             lastSavedContent: '',      // 脏检查锚点
@@ -1223,22 +1011,17 @@ cover: /assets/images/cover.jpg
             userMenu: false,
             shareDialog: { show: false, loading: false, filepath: '', filename: '', isShared: false, shareUrl: '', error: '' },
             showChangePwdModal: false,
-            showAboutModal: false,
             changePwdForm: { oldPwd: '', newPwd: '', confirmPwd: '', showOldPwd: false, showNewPwd: false, loading: false },
 
             fmBubbleOpen: false, // 控制FM气泡显示
 
             // ============================
-            // [STATE] 博客发布，静态网页生成
+            // [STATE] 静态站点生成
             // ============================
-            blogPublishModalOpen: false, // 控制弹窗显示
-            blogPublishLoading: false,   // 控制发布按钮的loading状态
-            blogPollingTimer: null,      // 轮询的定时器ID
-            blogPollingVersion: null,    // 本次发布任务的版本号（关键：用于比对）
-            blogInfo: {                  // 博客信息
-                version: null,
-                homepageUrl: ''
-            },
+            siteGenerateModalOpen: false, // 控制弹窗显示
+            userSiteAccessUrl: '',
+            siteGenerateLoading: false,
+
             init() {
                 try {
                     const email = this.currentUserEmail;
@@ -1257,12 +1040,6 @@ cover: /assets/images/cover.jpg
                 });
 
                 document.addEventListener('keydown', (e) => {
-                    // Ctrl+K 搜索
-                    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-                        e.preventDefault();
-                        this.showSearch = !this.showSearch;
-                        if (this.showSearch) this.$nextTick(() => this.$refs.searchInput?.focus());
-                    }
                     // Ctrl+S 保存
                     if ((e.ctrlKey || e.metaKey) && e.key === 's') {
                         e.preventDefault();
@@ -1302,6 +1079,12 @@ cover: /assets/images/cover.jpg
                     },
                     { deep: true }
                 );
+                // 编辑器键盘监听
+                this.$nextTick(() => {
+                    const editor = this.$refs.editor;
+                    if (!editor) return;
+                    editor.addEventListener('keydown', (e) => { nb_editorKeydownHandler(e, { editor: editor }); });
+                });
             },
 
             // ============================
@@ -1371,7 +1154,7 @@ cover: /assets/images/cover.jpg
                     this.lastSavedContent = this.editorContent;
                 }
             },
-            async notebook__openSharePage(path) {return await this.ctxOpenShareDialog(path); },
+            async notebook__openSharePage(path) { return await this.ctxOpenShareDialog(path); },
             notebook__closeFile() {
                 // 强制关闭文档
                 this.currentFile = null;
@@ -1381,22 +1164,15 @@ cover: /assets/images/cover.jpg
                 this.isSaving = false;
                 this.fmBubbleOpen = false;
             },
-            async notebook__publishBlog() {
-                await this.openBlogPublishModal();
-            },
+            async notebook__publishBlog(dirPath) { await this.openSiteGenerateModal(dirPath); },
             // ============================
             // [UI] 通用提示、对话方法
             // ============================
             closeAllPopups() {
-                console.log("Closing all popups...");
-                // 1. 关闭用户菜单（根组件状态）
                 this.userMenu = false;
-                // 2. 关闭右键菜单（根组件状态）
-                if (this.contextMenu?.show) {
-                    this.contextMenu.show = false;
-                }
-                // 关闭 FM 气泡
                 this.fmBubbleOpen = false;
+                // 通知树组件
+                window.dispatchEvent(new Event('notebook:closeAllPopups'));
             },
 
             showOverlay(message = '正在处理...') {
@@ -1460,21 +1236,55 @@ cover: /assets/images/cover.jpg
                 this.syncTimer = setTimeout(() => {
                     let contentToSend = '';
                     try {
+                        const filepath = this.currentFile?.id || '';
                         let pureInput = this.editorContent;
-                        if (isTextType(this.currentFile?.type)) {
-                            pureInput = `<div class="plain-text-preview">${escapeHtml(this.editorContent)}</div>`;
-                        }
-                        const rendered = renderMarkdown(pureInput, this.currentFile?.id ? this.currentFile.id : '/', this.username, this.domain);
-                        contentToSend = rendered.html;
 
-                        if (this.currentFile) {
-                            if (isMarkdownType(this.currentFile.id)) {
-                                this.currentFile.fmStatus = rendered.status; // 直接赋值状态
+                        if (isMarkdownType(filepath)) {
+                            // Markdown 文件：直接渲染
+                            const rendered = renderMarkdown(pureInput, filepath, this.username, this.domain);
+                            contentToSend = rendered.html;
+                            // 更新 FM 状态
+                            if (this.currentFile) {
+                                this.currentFile.fmStatus = rendered.status;
                                 this.currentFile.fmLog = rendered.log;
-                            } else {
+                            }
+                        } else if (isCodeType(filepath)) {
+                            // 代码文件：包成 Markdown 代码块，复用渲染管线
+                            const lang = getCodeLang(filepath);
+                            // 处理代码内容里的反引号：如果内容里有连续3个反引号，用4个反引号包裹避免语法冲突
+                            const fenceLen = Math.max(3, (pureInput.match(/`+/g) || []).reduce((max, m) => Math.max(max, m.length), 0) + 1);
+                            const fence = '`'.repeat(fenceLen);
+                            // 转义内容里的反斜杠（避免 Markdown 转义问题）
+                            const escapedContent = pureInput.replace(/\\/g, '\\\\');
+                            // 拼接成 Markdown 代码块
+                            pureInput = `${fence}${lang}\n${escapedContent}\n${fence}`;
+                            // 交给 Markdown 渲染，自动触发代码高亮
+                            const rendered = renderMarkdown(pureInput, filepath, this.username, this.domain);
+                            contentToSend = rendered.html;
+                            // 代码文件不需要 FM 校验
+                            if (this.currentFile) {
                                 this.currentFile.fmStatus = null;
                                 this.currentFile.fmLog = '';
                             }
+                        } else if (isPlainTextType(filepath)) {
+                            // 纯文本文件：用原来的样式包裹
+                            pureInput = `<div class="plain-text-preview">${escapeHtml(this.editorContent)}</div>`;
+                            const rendered = renderMarkdown(pureInput, filepath, this.username, this.domain);
+                            contentToSend = rendered.html;
+                            if (this.currentFile) {
+                                this.currentFile.fmStatus = null;
+                                this.currentFile.fmLog = '';
+                            }
+                        } else  if (isImageType(filepath)) {
+                            const rendered = renderMarkdown(pureInput, filepath, this.username, this.domain);
+                            contentToSend = rendered.html;
+                            if (this.currentFile) {
+                                this.currentFile.fmStatus = null;
+                                this.currentFile.fmLog = '';
+                            }
+                        } else {
+                            // 其他类型（图片/二进制等）：保持原有逻辑
+                            contentToSend = `<div class="text-gray-500 p-4">不支持预览的文件类型</div>`;
                         }
                     } catch (e) {
                         contentToSend = `<div class="text-red-500 p-4">渲染失败: ${escapeHtml(e.message)}</div>`;
@@ -1483,7 +1293,7 @@ cover: /assets/images/cover.jpg
                     if (!this.previewReady) return;
                     const iframe = document.querySelector('iframe[x-ref="previewFrame"]');
                     if (!iframe?.contentWindow) {
-                        console.warn('预览iframe未就绪，跳过同步（正常情况下不会发生）');
+                        console.warn('预览iframe未就绪，跳过同步');
                         return;
                     }
                     iframe.contentWindow.postMessage({
@@ -1766,12 +1576,8 @@ cover: /assets/images/cover.jpg
                 this.shareDialog.show = false;
             },
             // ============================
-            // [Others] 搜索功能、主页、登出
+            // [Others] 主页、登出
             // ============================
-            doSearch() {
-                this.showToast('搜索功能开发中...', 'info');
-                this.showSearch = false;
-            },
             navigateAway() {
                 // 编码特殊字符，避免邮箱里有+、=等符号导致路径错误
                 const url = `/notebook/publish/${encodeURIComponent(this.username)}/${encodeURIComponent(this.domain)}/index.html`;
@@ -1887,127 +1693,42 @@ cover: /assets/images/cover.jpg
                     this.changePwdForm.loading = false;
                 }
             },
-            // 打开关于弹窗
-            openAboutModal() {
-                this.userMenu = false; // 关闭下拉菜单
-                this.showAboutModal = true;
-            },
-            // 关闭关于弹窗
-            closeAboutModal() {
-                this.showAboutModal = false;
-            },
             // ============================
             // [UI] 博客发布相关方法
             // ============================
             // 1. 打开弹窗并获取当前版本
-            async openBlogPublishModal() {
-                this.blogPublishModalOpen = true;
-                this.blogPublishLoading = false; // 重置loading状态
-                // 清空旧状态
-                this.blogInfo = { version: null, homepageUrl: '' };
+            async openSiteGenerateModal(dirPath) {
+                // 2. 根据 node.id 拼接预览地址（核心逻辑）
+                // 示例：假设基础域名是 window.location.origin
+                // 假设路径规则是 /sites/{node.id}/index.html
+                this.userSiteAccessUrl = '/notebook/publish/' + this.username + "/" + this.domain + "/";
 
-                try {
-                    const res = await fetch('/notebook/blog');
-                    const data = await res.json();
-                    if (data.code === 0 && data.data.version) {
-                        this.blogInfo.version = data.data.version;
-                        // 构造博客首页地址（使用当前登录态的用户名和域名）
-                        this.blogInfo.homepageUrl = `/notebook/publish/${this.username}/${this.domain}/index.html`;
-                    }
-                } catch (e) {
-                    console.error('获取博客信息失败:', e);
-                    // 静默失败，弹窗依然显示“未发布”
-                }
+                // 3. 重置加载状态（防止上次操作残留）
+                this.siteGenerateLoading = false;
+                // 4. 关闭modal
+                this.siteGenerateModalOpen = true;
             },
             // 2. 关闭弹窗并清理轮询
-            closeBlogPublishModal() {
-                this.blogPublishModalOpen = false;
-                this.stopBlogPolling(); // 关键：关闭时必须停止轮询
-                // 清理临时状态
-                this.blogPollingVersion = null;
-                this.blogPublishLoading = false;
+            closeSiteGenerateModal() {
+                this.siteGenerateModalOpen = false;
             },
-            // 3. 开始发布
-            async startBlogPublish() {
-                // 防止重复点击
-                if (this.blogPublishLoading) return;
-
-                // 检查未保存内容（可选，但推荐）
-                if (this.hasUnSavedChanges && this.hasUnSavedChanges()) {
-                    if (!confirm('发布将使用服务器上的最新版本，当前编辑内容尚未保存。是否继续发布？')) {
-                        return;
-                    }
-                }
-
-                this.blogPublishLoading = true;
-
+            async startSiteGeneration() {
+                this.siteGenerateModalOpen = false;
                 try {
-                    const res = await fetch('/notebook/blog/publish', { method: 'POST' });
+                    const res = await fetch('/notebook/static_site', {
+                        method: 'POST',
+                        credentials: 'include',
+                    });
                     const data = await res.json();
-
-                    if (data.code === 0 && data.data.version) {
-                        // 记录本次发布的版本号
-                        this.blogPollingVersion = String(data.data.version);
-                        // 开始轮询
-                        this.startBlogPolling();
+                    if (data.code !== 0) {
+                        this.showToast(data.msg || '生成失败', 'error');
                     } else {
-                        throw new Error(data.msg || '发布请求失败');
+                        this.showToast('已开始生成，请稍后查看进度', 'info');
                     }
                 } catch (e) {
-                    this.showToast(`发布失败: ${e.message}`, 'error');
-                    this.blogPublishLoading = false;
+                    this.showToast('请求失败', 'error');
                 }
             },
-            // 4. 启动轮询
-            startBlogPolling() {
-                this.stopBlogPolling(); // 先清理旧的定时器
-                let pollCount = 0;
-                const maxPollCount = 60; // 1分钟超时（60次 * 1秒）
-
-                this.blogPollingTimer = setInterval(async () => {
-                    // 如果弹窗被手动关闭，停止轮询
-                    if (!this.blogPublishModalOpen) {
-                        this.stopBlogPolling();
-                        return;
-                    }
-
-                    pollCount++;
-                    if (pollCount > maxPollCount) {
-                        this.stopBlogPolling();
-                        this.showToast('发布超时，请稍后手动刷新查看状态', 'warn');
-                        this.blogPublishLoading = false;
-                        return;
-                    }
-
-                    try {
-                        const res = await fetch('/notebook/blog');
-                        const data = await res.json();
-
-                        if (data.code === 0 && data.data.version) {
-                            const serverVersion = String(data.data.version);
-                            // 核心比对：服务器版本 === 本次发布版本
-                            if (serverVersion === this.blogPollingVersion) {
-                                this.stopBlogPolling();
-                                this.blogPublishLoading = false;
-                                this.blogInfo.version = serverVersion;
-                                this.blogInfo.homepageUrl = `/notebook/publish/${this.username}/${this.domain}/index.html`;
-                                this.showToast('博客发布成功！', 'success');
-                            }
-                        }
-                    } catch (e) {
-                        console.error('轮询博客状态失败:', e);
-                        // 网络错误不中断轮询，继续尝试
-                    }
-                }, 1000); // 每1秒轮询一次
-            },
-            // 5. 停止轮询（工具方法）
-            stopBlogPolling() {
-                if (this.blogPollingTimer) {
-                    clearInterval(this.blogPollingTimer);
-                    this.blogPollingTimer = null;
-                }
-            },
-
         }));
     });
 </script>

@@ -3,40 +3,101 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>笔记本 - 游客预览</title>
+    <title>流年笺 - 游客预览</title>
 
-    <!-- 完全复用 home.html 的自托资源，保证风格100%一致 -->
     <link rel="stylesheet" href="/notebook/static/font-awesome-6-4-0/css/all.min.css">
-    <link rel="stylesheet" href="/notebook/static/css/fonts-jetbrains-mono.css">
+    <link rel="stylesheet" href="/notebook/static/fonts/fonts.css">
+
     <script src="/notebook/static/js/marked-18.0.5.js"></script>
     <script src="/notebook/static/js/diff_match_patch.js"></script>
     <script src="/notebook/static/js/spark-md5.min.js"></script>
     <script src="/notebook/static/js/purify-3.1.6.min.js"></script>
     <script src="/notebook/static/js/tailwindcss-3.4.17.js"></script>
+
+    <script defer src="/notebook/static/js/utils.js"></script>
+    <script defer src="/notebook/static/js/tree-guest-browser.js"></script>
     <script defer src="/notebook/static/js/alpinejs-3.x.x-cdn.min.js"></script>
 
     <style>
-        /* 完全复用 home.html 的基础样式 */
         [x-cloak] { display: none !important; }
+        :root {
+            --z-nav: 30;
+            --z-context-menu: 70;
+            --z-normal-modal: 80;
+            --z-modal: 80;
+            --z-overlay: 120;
+            --z-toast: 130;
+        }
+
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             background-color: #f8f9fa;
+            color: #212529;
             overflow: hidden;
             height: 100vh;
-            color: #212529;
         }
+
+        /* ========== 滚动条 ========== */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #ced4da; border-radius: 3px; }
         ::-webkit-scrollbar-thumb:hover { background: #adb5bd; }
-        * { scrollbar-width: thin; scrollbar-color: #ced4da transparent; }
 
+        /* ========== 编辑器 ========== */
+        textarea.editor, pre code {
+            font-family:
+                    'JetBrains Mono',
+                    'Sarasa Mono SC',
+                    'Noto Sans Mono CJK SC',
+                    'Microsoft YaHei',
+                    'PingFang SC',
+                    monospace;
+        }
         textarea.editor {
-            font-family: 'JetBrains Mono', 'Fira Code', monospace;
             font-size: 14px;
             line-height: 1.7;
             tab-size: 4;
         }
+
+        /* ========== FM胶囊 ========== */
+        .fm-capsule {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 999px; /* 胶囊形状 */
+            font-size: 10px;
+            font-weight: 600;
+            color: white;
+            transition: background-color 0.4s ease, box-shadow 0.4s ease; /* 关键：平滑过渡 */
+            cursor: default;
+            user-select: none;
+        }
+
+        /* 默认状态（代码图标，非胶囊） */
+        .fm-default {
+            color: #9ca3af; /* gray-400 */
+            font-size: 10px;
+        }
+
+        /* 状态1: OK - 绿色 */
+        .fm-ok {
+            background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+            box-shadow: 0 1px 3px rgba(34, 197, 94, 0.2);
+        }
+
+        /* 状态-1: Error - 黄色 */
+        .fm-error {
+            background: linear-gradient(135deg, #facc15 0%, #eab308 100%);
+            box-shadow: 0 1px 3px rgba(234, 179, 8, 0.2);
+        }
+
+        /* 移除之前的流光动画，因为我们不需要了 */
+        .fm-capsule::before {
+            display: none;
+        }
+
+        /* ========== 加载动画 ========== */
         .loading-spinner {
             width: 14px; height: 14px;
             border: 2px solid #e9ecef;
@@ -45,51 +106,262 @@
             animation: spin 0.6s linear infinite;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
-
-        /* 游客专属：只读编辑框样式 */
-        textarea.editor-readonly {
-            background-color: #f8f9fa;
-            color: #868e96;
-            cursor: not-allowed;
-        }
     </style>
 </head>
 <body>
 
 <!-- ============================
-     [NAV] 顶部导航栏（完全对齐 home.html）
+     [NAV] 顶部导航栏
      ============================ -->
-<nav class="h-14 bg-white border-b border-gray-200 flex items-center justify-center px-4 flex-shrink-0 shadow-sm relative z-30">
-    <!-- 左侧：主页按钮 + 游客标识 -->
+<nav class="h-14 bg-white border-b border-gray-200 flex items-center justify-center px-4 flex-shrink-0 shadow-sm relative z-[var(--z-nav)]">
     <div class="absolute left-4 flex items-center space-x-1">
-        <a href="/notebook/guest" class="flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-all duration-150" title="返回主页">
+        <a href="#" @click.prevent="navigateAway()" class="flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-all duration-150" title="返回主页">
             <i class="fas fa-home text-sm"></i>
             <span class="text-sm font-medium hidden sm:inline">主页</span>
         </a>
         <div class="h-6 w-px bg-gray-200 mx-1"></div>
-        <!-- 游客标识 -->
-        <span class="px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-bold rounded-full uppercase tracking-wider">游客模式</span>
-    </div>
-
-    <!-- 中间标题 -->
-    <div class="flex items-center justify-center">
-        <span class="font-bold text-gray-800 text-sm tracking-wide">笔记本</span>
-    </div>
-
-    <!-- 右侧：登录/注册按钮 -->
-    <div class="absolute right-4 flex items-center space-x-2">
-        <button @click="showLoginModal = true" class="flex items-center space-x-1.5 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium rounded-lg transition-colors shadow-sm">
-            <i class="fas fa-sign-in-alt"></i>
-            <span>登录/注册</span>
+        <button :disabled=true class="flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed" title="保存 (Ctrl+S)">
+            <i class="fas fa-save text-sm"></i>
+            <span class="text-sm font-medium hidden sm:inline">保存</span>
         </button>
+        <button :disabled=true class="flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed" title="历史版本">
+            <i class="fas fa-history text-sm"></i>
+            <span class="text-sm font-medium hidden sm:inline">历史</span>
+        </button>
+        <button @click="openAboutModal()" type="button" class="flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed" title="关于">
+            <i class="fas fa-info-circle text-sm"></i>
+            <span class="text-sm font-medium hidden sm:inline">关于</span>
+        </button>
+    </div>
+
+    <div class="flex items-center justify-center">
+        <span class="font-bold text-gray-800 text-sm tracking-wide">流年笺</span>
+        <span class="ml-3 px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-bold rounded-full uppercase tracking-wider">游客模式</span>
+    </div>
+
+    <div class="absolute right-4 flex items-center space-x-4">
+        <button @click="showSearch = !showSearch" class="p-2 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-all duration-150" title="搜索 (Ctrl+K)">
+            <i class="fas fa-search text-sm"></i>
+        </button>
+        <div class="flex items-center bg-gray-100 rounded-lg p-0.5 ml-1 mr-4">
+            <button @click="viewMode = 'single'" :class="viewMode === 'single' ? 'bg-white text-blue-500 shadow-sm' : 'text-gray-400 hover:text-gray-600'" class="px-2.5 py-1.5 rounded-md text-xs transition-all duration-150" title="单页视图">
+                <i class="fas fa-window-maximize"></i>
+            </button>
+            <button @click="viewMode = 'split'" :class="viewMode === 'split' ? 'bg-white text-blue-500 shadow-sm' : 'text-gray-400 hover:text-gray-600'" class="px-2.5 py-1.5 rounded-md text-xs transition-all duration-150" title="双页视图">
+                <i class="fas fa-columns"></i>
+            </button>
+        </div>
+        <div class="h-6 w-px bg-gray-200"></div>
+        <div class="relative items-center">
+            <button @click="showLoginModal = true" type="button" class="flex items-center space-x-2 px-2.5 py-1.5 rounded-lg bg-blue-500 hover:bg-blue-600 text-white transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed">
+                <i class="fas fa-sign-in-alt"></i>
+                <span class="text-sm font-medium hidden sm:inline">登录/注册</span>
+            </button>
+        </div>
     </div>
 </nav>
 
 <!-- ============================
-     [LAYOUT] 主内容区（完全对齐 home.html）
+     [MODAL] 关于弹窗
+     ============================ -->
+<template x-teleport="body">
+    <div x-show="showAboutModal" x-cloak class="fixed inset-0 z-[var(--z-overlay)] overflow-y-auto">
+        <!-- 遮罩 -->
+        <div x-show="showAboutModal" x-transition class="fixed inset-0 bg-black/50 backdrop-blur-sm" @click="closeAboutModal()"></div>
+
+        <!-- 弹窗主体 -->
+        <div class="flex min-h-full items-center justify-center p-4">
+            <div x-show="showAboutModal" x-transition class="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden" @click.stop @keydown.escape="closeAboutModal()">
+                <!-- 标题栏 -->
+                <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-cyan-400 flex items-center justify-center">
+                            <i class="fas fa-info-circle text-white w-4"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-800">关于</h3>
+                    </div>
+                    <button @click="closeAboutModal()" class="p-2 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+
+                <!-- 内容区 -->
+                <div class="p-6 space-y-5">
+                    <!-- 基本信息 -->
+                    <div class="flex flex-col items-center py-2">
+                        <div class="w-14 h-14 mb-3 flex items-center justify-center">
+                            <i class="fa-solid fa-scroll text-3xl"></i>
+                        </div>
+                        <div class="flex items-center justify-center">
+                            <span class="font-bold text-gray-800 text-sm tracking-wide">流年笺</span>
+                        </div>
+                    </div>
+                    <!-- 开源信息 - 统一卡片样式和间距 -->
+                    <div class="bg-gray-50 rounded-xl p-4 border border-gray-100 space-y-3">
+                        <p class="text-sm text-gray-700 leading-relaxed">
+                            这是一个开源、轻量但功能强大的云笔记本，支持文章分享、静态站点生成、底层存储分离。许可证范围内可自由修改、分发。
+                        </p>
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-gray-600">开源地址：</span>
+                            <a href="https://github.com/cl-ei/notebook-liunianjian" target="_blank" rel="noopener noreferrer" class="text-sm text-blue-500 hover:underline flex items-center">
+                                GitHub 仓库
+                                <i class="fas fa-external-link-alt ml-1 text-xs"></i>
+                            </a>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-gray-600">许可证：</span>
+                            <span class="text-sm text-gray-700">MIT License</span>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                        <h5 class="text-sm font-medium text-center text-gray-700 mb-3">核心技术栈</h5>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="inline-flex items-center px-2.5 py-1 bg-gray-100 text-gray-700 text-xs rounded-full border border-gray-200">
+                                <i class="fa-brands fa-python mr-1.5"></i>Python 3.13+
+                            </span>
+                            <span class="inline-flex items-center px-2.5 py-1 bg-gray-100 text-gray-700 text-xs rounded-full border border-gray-200">
+                                <i class="fa-solid fa-bolt mr-1.5"></i>FastAPI
+                            </span>
+                            <span class="inline-flex items-center px-2.5 py-1 bg-gray-100 text-gray-700 text-xs rounded-full border border-gray-200">
+                                <i class="fa-solid fa-mountain mr-1.5"></i>Alpine.js
+                            </span>
+                            <span class="inline-flex items-center px-2.5 py-1 bg-gray-100 text-gray-700 text-xs rounded-full border border-gray-200">
+                                <i class="fa-solid fa-wind mr-1.5"></i>Tailwind CSS
+                            </span>
+                            <span class="inline-flex items-center px-2.5 py-1 bg-gray-100 text-gray-700 text-xs rounded-full border border-gray-200">
+                                <i class="fa-solid fa-code mr-1.5"></i>Marked.js
+                            </span>
+                            <span class="inline-flex items-center px-2.5 py-1 bg-gray-100 text-gray-700 text-xs rounded-full border border-gray-200">
+                                <i class="fa-solid fa-shield-halved mr-1.5"></i>DOMPurify
+                            </span>
+                            <span class="inline-flex items-center px-2.5 py-1 bg-gray-100 text-gray-700 text-xs rounded-full border border-gray-200">
+                                diff-match-patch
+                            </span>
+                            <span class="inline-flex items-center px-2.5 py-1 bg-gray-100 text-gray-700 text-xs rounded-full border border-gray-200">
+                                <i class="fa-brands fa-font-awesome mr-1.5"></i>Font Awesome
+                            </span>
+                        </div>
+                    </div>
+                    <!-- ============================
+                         字体致谢模块 - 统一卡片样式
+                         ============================ -->
+                    <section class="about-section">
+                        <div x-data="{ fontOpen: false }" class="border border-gray-100 rounded-xl overflow-hidden bg-white">
+                            <!-- 头部：可点击展开/收起 -->
+                            <button
+                                    @click="fontOpen = !fontOpen"
+                                    class="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
+                            >
+                                <div class="flex items-center space-x-3">
+                                    <i class="fas fa-font text-blue-500"></i>
+                                    <h3 class="text-base font-semibold text-gray-800">所用字体</h3>
+                                    <span class="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">全离线</span>
+                                </div>
+                                <i :class="fontOpen ? 'fas fa-chevron-up' : 'fas fa-chevron-down'" class="text-gray-400 text-sm transition-transform"></i>
+                            </button>
+
+                            <!-- 展开内容 -->
+                            <div x-show="fontOpen" x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0 h-0" x-transition:enter-end="opacity-100 h-auto" x-transition:leave="transition ease-in duration-100" x-transition:leave-start="opacity-100 h-auto" x-transition:leave-end="opacity-0 h-0" class="border-t border-gray-100">
+                                <div class="p-4 space-y-4">
+                                    <!-- 说明文字 -->
+                                    <p class="text-sm text-gray-600 leading-relaxed">
+                                        本项目UI西文采用Rasmus Andersson设计的Inter，代码区采用JetBrains推出的JetBrains Mono。
+                                        所有字体均遵循SIL Open Font License协议。
+                                    </p>
+
+                                    <!-- 字体列表：每个字体一个卡片 -->
+                                    <div class="space-y-3">
+                                        <!-- 1. Inter（UI西文） -->
+                                        <div class="p-3 bg-gray-50 rounded-lg border border-gray-100">
+                                            <div class="flex items-center justify-between mb-2">
+                                                <div class="flex items-center space-x-2">
+                                                    <span class="font-medium text-gray-800" style="font-family: 'Inter', sans-serif;">Inter</span>
+                                                    <span class="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full">UI 西文</span>
+                                                </div>
+                                                <span class="text-xs text-gray-500">400/500/600/700</span>
+                                            </div>
+                                            <div class="text-sm" style="font-family: 'Inter', sans-serif; font-weight: 400;">
+                                                ABCDEFGHIJKLMNOPQRSTUVWXYZ · abcdefghijklmnopqrstuvwxyz · 0123456789 · 笔记 / Front Matter / 发布
+                                            </div>
+                                        </div>
+
+                                        <!-- 3. JetBrains Mono（代码等宽） -->
+                                        <div class="p-3 bg-gray-50 rounded-lg border border-gray-100">
+                                            <div class="flex items-center justify-between mb-2">
+                                                <div class="flex items-center space-x-2">
+                                                    <span class="font-medium text-gray-800" style="font-family: 'JetBrains Mono', monospace;">JetBrains Mono</span>
+                                                    <span class="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full">代码等宽</span>
+                                                </div>
+                                                <span class="text-xs text-gray-500">400/500</span>
+                                            </div>
+                                            <div class="text-sm" style="font-family: 'JetBrains Mono', monospace; font-weight: 400;">
+                                                <span class="text-gray-500">// Front Matter 示例</span><br>
+                                                ---<br>
+                                                title: "字体说明"<br>
+                                                date: 2026-07-12<br>
+                                                tags: [Inter, JetBrains Mono]
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- 版权信息 - 调整间距和样式 -->
+                    <div class="pt-2">
+                        <p class="text-xs text-gray-400 text-center"
+                           x-init="this.aboutYear = new Date().getFullYear()"
+                           x-text="`© ${aboutYear} 流年笺 · 保留所有权利`">
+                        </p>
+                    </div>
+                </div>
+
+                <!-- 底部按钮 -->
+                <div class="px-6 py-4 border-t border-gray-100 flex justify-center">
+                    <button @click="closeAboutModal()" class="px-6 py-2.5 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors">
+                        我知道了
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</template>
+
+<!-- ============================
+     [MODAL] 搜索弹窗
+     ============================ -->
+<template x-teleport="body">
+    <div x-show="showSearch" x-cloak @keydown.escape.window="showSearch = false" class="fixed inset-0 z-[var(--z-normal-modal)] overflow-y-auto">
+        <div class="fixed inset-0 bg-gray-900/30 backdrop-blur-sm" @click="showSearch = false"></div>
+        <div class="flex min-h-full items-start justify-center pt-24 p-4">
+            <div x-show="showSearch" x-transition class="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-gray-100" @click.stop>
+                <div class="flex items-center border-b border-gray-100 px-4">
+                    <i class="fas fa-search text-gray-300"></i>
+                    <input type="text" placeholder="搜索笔记... (Ctrl+K)" class="w-full bg-transparent border-none text-gray-800 px-3 py-4 focus:outline-none text-sm placeholder-gray-300" x-ref="searchInput" @keydown.enter="doSearch()">
+                    <kbd class="hidden sm:inline-flex items-center px-2 py-1 bg-gray-100 rounded text-[10px] text-gray-400 font-mono">ESC</kbd>
+                </div>
+                <div class="p-2 max-h-64 overflow-y-auto">
+                    <div class="px-3 py-1.5 text-[11px] text-gray-400 font-bold uppercase tracking-wider">最近搜索</div>
+                    <div class="px-3 py-2 hover:bg-blue-50 rounded-lg cursor-pointer text-sm text-gray-700 transition-colors flex items-center">
+                        <i class="fas fa-clock text-gray-300 mr-2 text-xs"></i>API 设计文档
+                    </div>
+                    <div class="px-3 py-2 hover:bg-blue-50 rounded-lg cursor-pointer text-sm text-gray-700 transition-colors flex items-center">
+                        <i class="fas fa-clock text-gray-300 mr-2 text-xs"></i>项目会议纪要
+                    </div>
+                    <div class="px-3 py-2 hover:bg-blue-50 rounded-lg cursor-pointer text-sm text-gray-700 transition-colors flex items-center">
+                        <i class="fas fa-clock text-gray-300 mr-2 text-xs"></i>Go 并发编程笔记
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</template>
+
+<!-- ============================
+     [LAYOUT] 主内容区
      ============================ -->
 <div class="flex" style="height: calc(100vh - 3.5rem);">
-    <!-- 左侧目录树（写死数据，只读） -->
     <aside
             x-show="!sidebarCollapsed"
             x-transition:enter="transition ease-out duration-300"
@@ -100,18 +372,52 @@
             x-transition:leave-end="-translate-x-full opacity-0"
             class="w-64 bg-white border-r border-gray-200 flex-shrink-0 overflow-hidden flex flex-col absolute md:relative z-20 h-full"
     >
-        <div class="h-11 p-3 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
-            <h3 class="text-[11px] font-bold text-gray-400 uppercase tracking-wider">游客文件夹</h3>
+        <div class="h-11 p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+            <h3 class="text-[11px] font-bold text-gray-400 uppercase tracking-wider">游客的文件夹</h3>
         </div>
-        <div
-                class="overflow-auto flex-1 p-2"
-                @click="onTreeClick"
-                @contextmenu.prevent="onTreeRightClick"
-                x-html="treeHtml"
-        ></div>
+        <div x-data="treeBrowser()" class="h-full">
+            <div class="overflow-auto flex-1 p-2 h-full" @click="onTreeClick" @contextmenu.prevent="onTreeRightClick" x-html="treeHtml"></div>
+            <template x-teleport="body">
+                <div
+                        x-show="contextMenu.show"
+                        x-cloak
+                        @click.away="closeContextMenu()"
+                        @contextmenu.prevent="closeContextMenu()"
+                        x-transition:enter="transition ease-out duration-100"
+                        x-transition:enter-start="opacity-0 scale-95"
+                        x-transition:enter-end="opacity-100 scale-100"
+                        x-transition:leave="transition ease-in duration-75"
+                        x-transition:leave-start="opacity-100 scale-100"
+                        x-transition:leave-end="opacity-0 scale-95"
+                        class="fixed z-[var(--z-context-menu)] min-w-[180px] bg-white rounded-xl shadow-2xl border border-gray-100 py-1 overflow-hidden"
+                        :style="`left: ${contextMenu.x}px; top: ${contextMenu.y}px;`"
+                >
+                    <div x-show="contextMenu.targetNode" class="px-3 py-2 border-b border-gray-50 bg-gray-50/50">
+                        <p class="text-xs text-gray-400 truncate" x-text="contextMenu.targetNode?.name || ''"></p>
+                    </div>
+                    <template x-for="(item, index) in contextMenu.items" :key="index">
+                        <div>
+                            <div x-show="item.divider" class="my-1 border-t border-gray-100"></div>
+                            <button
+                                    x-show="!item.divider"
+                                    @click="executeContextAction(item.action)"
+                                    class="w-full text-left px-3 py-2.5 text-sm flex items-center space-x-2 transition-colors"
+                                    :class="{
+                                'text-gray-700 hover:bg-blue-50 hover:text-blue-600': !item.danger && !item.highlight,
+                                'text-red-500 hover:bg-red-50': item.danger,
+                                'text-blue-600 bg-blue-50 font-medium': item.highlight,
+                                'hover:bg-gray-50': !item.danger && !item.highlight
+                            }"
+                            >
+                                <span x-text="item.label"></span>
+                            </button>
+                        </div>
+                    </template>
+                </div>
+            </template>
+        </div>
     </aside>
 
-    <!-- 侧边栏折叠按钮 -->
     <button
             @click="sidebarCollapsed = !sidebarCollapsed"
             class="absolute left-0 top-1/2 -translate-y-1/2 z-30 transition-all duration-300"
@@ -122,56 +428,142 @@
         </div>
     </button>
 
-    <!-- 右侧主工作区 -->
-    <main class="flex-1 overflow-hidden bg-gray-50">
-        <!-- 单页视图 -->
-        <div x-show="viewMode === 'single'" class="h-full flex flex-col">
-            <div class="h-11 bg-white border-b border-gray-200 flex items-center px-4 shadow-sm">
-                <i class="fas fa-file-alt text-gray-400 text-xs flex-shrink-0"></i>
-                <span class="text-xs text-gray-500 font-medium truncate ml-2 leading-none" x-text="formatPath(currentFile?.id || '')"></span>
-                <button x-show="currentFile" @click="copyPath()" class="flex-shrink-0 p-1 ml-2 rounded text-gray-400 hover:text-blue-500 hover:bg-blue-50 transition-colors" title="复制路径">
-                    <i class="fas fa-copy text-xs"></i>
-                </button>
-                <span class="text-[10px] text-amber-500 ml-auto">只读模式</span>
-            </div>
-            <div class="flex-1 overflow-auto bg-white">
-                <textarea
-                        x-ref="editorSingle"
-                        x-model="editorContent"
-                        readonly
-                        class="editor editor-readonly w-full h-full p-6 resize-none focus:outline-none placeholder-gray-300"
-                        placeholder="登录后可使用编辑功能..."
-                        spellcheck="false"
-                ></textarea>
-            </div>
-        </div>
+    <!-- ============================
+         [LAYOUT] 主编辑区（单/双页共用 · 无动画）
+         ============================ -->
+    <main class="flex-1 overflow-hidden bg-gray-50 flex flex-col">
+        <div class="flex h-full">
+            <!-- =======================
+                 编辑区（永远存在）
+                 ======================= -->
+            <div class="flex flex-col min-w-0 h-full"
+                 :class="viewMode === 'single' ? 'w-full' : 'w-1/2'">
+                <div class="h-11 bg-white border-b border-gray-200 flex items-center px-4 shadow-sm">
+                    <template x-if="currentFile">
+                        <div class="flex items-center h-5 relative group">
+                            <!-- MD 文件：动态胶囊 -->
+                            <i x-show="isMarkdownType(currentFile.id) && currentFile.fmStatus === null"
+                               class="fas fa-code text-gray-400 text-[10px] pointer-events-none select-none"
+                            ></i>
+                            <div
+                                    x-show="isMarkdownType(currentFile.id) && (currentFile.fmStatus === 1 || currentFile.fmStatus === -1)"
+                                    @click.stop="fmBubbleOpen = !fmBubbleOpen"
+                                    :class="{
+                                        'fm-capsule fm-ok': currentFile.fmStatus === 1,
+                                        'fm-capsule fm-error': currentFile.fmStatus === -1
+                                    }"
+                                    class="cursor-pointer hover:scale-105 transition-transform duration-150 ease-out z-10"
+                            >
+                                <i :class="{
+                                    'fas fa-check': currentFile.fmStatus === 1,
+                                    'fas fa-exclamation-triangle': currentFile.fmStatus === -1
+                                }" class="text-[10px]"></i>
+                                <span class="ml-1 font-semibold">Front Matter</span>
+                            </div>
 
-        <!-- 双页视图 -->
-        <div x-show="viewMode === 'split'" class="h-full flex">
-            <!-- 左侧编辑区（只读） -->
-            <div class="flex-1 border-r border-gray-200 flex flex-col bg-white">
-                <div class="h-11 bg-gray-50 border-b border-gray-200 flex items-center px-4">
-                    <i class="fas fa-code text-gray-400 text-xs flex-shrink-0"></i>
-                    <span class="text-xs text-gray-500 font-medium truncate ml-2 leading-none" x-text="formatPath(currentFile?.id || '')"></span>
-                    <button x-show="currentFile" @click="copyPath()" class="flex-shrink-0 p-1 ml-2 rounded text-gray-400 hover:text-blue-500 hover:bg-blue-50 transition-colors" title="复制路径">
-                        <i class="fas fa-copy text-xs"></i>
-                    </button>
-                    <span class="text-[10px] text-gray-300 flex-shrink-0 ml-auto">Edit</span>
-                    <span class="text-[10px] text-amber-500 ml-1">只读</span>
+                            <!-- FM 轻量悬浮气泡 -->
+                            <div x-show="fmBubbleOpen && (currentFile.fmStatus === 1 || currentFile.fmStatus === -1)"
+                                 @click.away="fmBubbleOpen = false"
+                                 @keydown.escape.window="fmBubbleOpen = false"
+                                 x-cloak
+                                 x-transition:enter="transition ease-out duration-150"
+                                 x-transition:enter-start="opacity-0 translate-y-1"
+                                 x-transition:enter-end="opacity-100 translate-y-0"
+                                 x-transition:leave="transition ease-in duration-100"
+                                 x-transition:leave-start="opacity-100 translate-y-0"
+                                 x-transition:leave-end="opacity-0 translate-y-1"
+                                 class="absolute top-full left-0 mt-2 w-[28rem] bg-white rounded-xl shadow-lg border border-gray-100 p-5 z-50 text-sm
+                                    before:content-[''] before:absolute before:-top-2 before:left-6
+                                    before:border-8 before:border-transparent before:border-b-white
+                                    max-h-[80vh] overflow-y-auto">
+
+                                <div class="pt-4 pb-3 mb-3 border-b border-gray-100">
+                                    <div class="flex items-center space-x-1.5 mb-2">
+                                        <i :class="{
+                                        'fas fa-check text-green-500': currentFile.fmStatus === 1,
+                                        'fas fa-exclamation-triangle text-yellow-500': currentFile.fmStatus === -1
+                                    }" class="text-[10px]"></i>
+                                        <span class="text-xs font-medium text-gray-700">解析日志</span>
+                                    </div>
+                                    <div class="text-xs text-gray-600 bg-gray-50 p-3 rounded-lg
+                                    max-h-48 overflow-y-auto
+                                    whitespace-pre-line break-words leading-relaxed"
+                                         x-html="currentFile.fmLog || '格式解析正确'">
+                                    </div>
+                                </div>
+
+                                <div class="mb-4">
+                                    <div class="text-xs text-gray-500 leading-relaxed mb-3">
+                                        <p class="mb-1.5"><strong>什么是 Front Matter？</strong><br>它是位于 Markdown 文件顶部的配置区块，用于定义文章的元数据（如标题、日期）。这些变量可以在渲染时被模板读取，从而控制页面的布局、URL 和行为。</p>
+                                        <p class="mb-1.5"><strong>GitHub Pages 兼容性</strong><br>完全兼容 GitHub Pages (Jekyll) 及 Hugo、Hexo、VuePress 等主流静态站点生成器，同时兼容 Obsidian、Logseq、Foam 等双链笔记软件的 FM 格式，存量笔记导入无需修改。</p>
+                                        <p><strong>示例</strong></p>
+                                    </div>
+                                    <div class="mt-3 p-2 bg-gray-50 rounded border border-gray-200">
+                                        <pre class="text-[10px] text-gray-700 overflow-x-auto"><code>---
+layout: post
+title: "Markdown 编辑器指南"
+date: 2026-07-11 14:30:00 +0800
+categories:
+  - 教程
+  - 工具
+tags: [Markdown, Jekyll, Front Matter]
+draft: false
+comments: true
+cover: /assets/images/cover.jpg
+---
+
+# 这里是正文标题
+
+从这里开始编写你的 Markdown 内容...</code></pre>
+                                    </div>
+
+                                    <p class="text-[10px] text-gray-400 mt-2 italic">提示：修改 Front Matter 后请手动保存，确保配置生效。</p>
+                                </div>
+                            </div>
+
+                            <i x-show="!isMarkdownType(currentFile.id)" class="fas fa-code text-gray-400 text-xs flex-shrink-0"></i>
+                        </div>
+                    </template>
+
+                    <span x-show="currentFile" class="text-xs text-gray-500 font-medium truncate ml-2 leading-none" x-text="formatPath(currentFile?.id || '')"></span>
+                    <button
+                            x-show="currentFile"
+                            @click="copyPath()"
+                            class="flex-shrink-0 p-1 ml-2 rounded text-gray-400 hover:text-blue-500 hover:bg-blue-50 transition-colors duration-150"
+                            title="复制路径"
+                    ><i class="fas fa-copy text-xs"></i></button>
+
+                    <template x-if="currentFile">
+                        <button @click="closeCurrentFileAndDeselect()"
+                                class="text-[10px] text-gray-400 hover:text-red-500 flex-shrink-0 ml-auto p-1 rounded hover:bg-gray-100 transition-colors duration-150"
+                                title="关闭文档">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </template>
+                    <template x-if="!currentFile">
+                        <div class="flex items-center h-5 w-full text-gray-400 select-none">
+                            <i class="fas fa-code text-xs flex-shrink-0"></i>
+                            <span class="text-xs font-medium ml-2 leading-none truncate">...</span>
+                            <span class="ml-auto text-[10px] text-gray-400 flex-shrink-0">Edit</span>
+                        </div>
+                    </template>
                 </div>
-                <div class="flex-1 overflow-hidden">
+                <div class="flex-1 overflow-hidden bg-white">
                     <textarea
-                            x-ref="editorSplit"
+                            x-ref="editor"
                             x-model="editorContent"
-                            readonly
-                            class="editor editor-readonly w-full h-full bg-white text-gray-800 p-6 resize-none focus:outline-none placeholder-gray-300"
-                            placeholder="登录后可使用编辑功能..."
+                            class="editor w-full h-full bg-white text-gray-800 p-6 resize-none focus:outline-none placeholder-gray-300"
+                            placeholder="在这里输入内容..."
                             spellcheck="false"
                     ></textarea>
                 </div>
             </div>
-            <!-- 右侧预览区（和home完全一致） -->
-            <div class="flex-1 flex flex-col bg-white">
+
+            <!-- =======================
+                 预览区（条件展开 · 无动画）
+                 ======================= -->
+            <div class="flex flex-col min-w-0 h-full border-l border-gray-200 bg-white"
+                 :class="viewMode === 'split' ? 'w-1/2' : 'w-0 overflow-hidden pointer-events-none'">
                 <div class="h-11 bg-gray-50 border-b border-gray-200 flex items-center px-4">
                     <i class="fas fa-eye text-gray-400 mr-2 text-xs"></i>
                     <span class="text-xs text-gray-500 font-medium">实时预览</span>
@@ -181,31 +573,20 @@
                 <div class="flex-1 overflow-hidden">
                     <iframe x-ref="previewFrame"
                             src="/notebook/static/render.html"
-                            @load="onPreviewFrameLoad"
                             class="w-full h-full border-none"
                             sandbox="allow-scripts allow-same-origin">
                     </iframe>
                 </div>
             </div>
         </div>
-
-        <!-- 视图切换按钮（完全对齐home） -->
-        <div class="absolute right-4 bottom-4 z-30 flex items-center bg-gray-100 rounded-lg p-0.5 shadow-sm">
-            <button @click="viewMode = 'single'" :class="viewMode === 'single' ? 'bg-white text-blue-500 shadow-sm' : 'text-gray-400 hover:text-gray-600'" class="px-2.5 py-1.5 rounded-md text-xs transition-all duration-150" title="单页视图">
-                <i class="fas fa-window-maximize"></i>
-            </button>
-            <button @click="viewMode = 'split'" :class="viewMode === 'split' ? 'bg-white text-blue-500 shadow-sm' : 'text-gray-400 hover:text-gray-600'" class="px-2.5 py-1.5 rounded-md text-xs transition-all duration-150" title="双页视图">
-                <i class="fas fa-columns"></i>
-            </button>
-        </div>
     </main>
 </div>
 
 <!-- ============================
-     [TOAST] 堆叠通知（完全对齐home）
+     [TOAST] 堆叠通知
      ============================ -->
 <template x-teleport="body">
-    <div class="fixed top-5 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 pointer-events-none items-center">
+    <div class="fixed top-5 left-1/2 -translate-x-1/2 z-[var(--z-toast)] flex flex-col gap-2 pointer-events-none items-center">
         <template x-for="toast in toasts" :key="toast.id">
             <div
                     x-show="toast.show"
@@ -364,7 +745,7 @@
                                 此站点为私有部署，仅限授权用户访问。<br>
                                 想要拥有自己的笔记服务？
                             </p>
-                            <a href="https://github.com/cl-ei/notebook.madliar"
+                            <a href="https://github.com/cl-ei/notebook-liunianjian"
                                target="_blank"
                                class="inline-flex items-center text-xs font-medium text-blue-600 hover:text-blue-800 mt-2 transition-colors group">
                                 <i class="fab fa-github mr-1.5"></i>
@@ -378,179 +759,33 @@
         </div>
     </div>
 </template>
-
-<!-- ============================
-     [CONTEXT-MENU] 右键菜单（所有操作拦截为“未登录”）
-     ============================ -->
-<template x-teleport="body">
-    <div
-            x-show="contextMenu.show"
-            x-cloak
-            @click.away="closeContextMenu()"
-            @contextmenu.prevent="closeContextMenu()"
-            x-transition:enter="transition ease-out duration-100"
-            x-transition:enter-start="opacity-0 scale-95"
-            x-transition:enter-end="opacity-100 scale-100"
-            x-transition:leave="transition ease-in duration-75"
-            x-transition:leave-start="opacity-100 scale-100"
-            x-transition:leave-end="opacity-0 scale-95"
-            class="fixed z-[70] min-w-[180px] bg-white rounded-xl shadow-2xl border border-gray-100 py-1 overflow-hidden"
-            :style="`left: ${contextMenu.x}px; top: ${contextMenu.y}px;`"
-    >
-        <div x-show="contextMenu.targetNode" class="px-3 py-2 border-b border-gray-50 bg-gray-50/50">
-            <p class="text-xs text-gray-400 truncate" x-text="contextMenu.targetNode?.name || ''"></p>
-        </div>
-        <template x-for="(item, index) in contextMenu.items" :key="index">
-            <div>
-                <div x-show="item.divider" class="my-1 border-t border-gray-100"></div>
-                <button
-                        x-show="!item.divider"
-                        @click="handleGuestAction(item.action)"
-                        class="w-full text-left px-3 py-2 text-sm flex items-center space-x-2 transition-colors text-gray-700 hover:bg-blue-50 hover:text-blue-600"
-                >
-                    <span x-text="item.label"></span>
-                </button>
-            </div>
-        </template>
-    </div>
-</template>
-
 <!-- ============================
      [SCRIPT] 应用逻辑
      ============================ -->
 <script>
-    // 工具函数复用 home.html 的实现
-    function escapeHtml(text) {
-        const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
-        return text.replace(/[&<>"']/g, m => map[m]);
-    }
-    function isMarkdownType(fileName) {
-        if (!fileName) return false;
-        return /\.(md|markdown)$/i.test(fileName);
-    }
-    function isImageType(fileName) {
-        if (!fileName) return false;
-        return /\.(png|jpg|jpeg|gif|svg|webp)$/i.test(fileName);
-    }
-
-    // 写死的文件内容
-    const GUEST_CONTENTS = {
-        '/guest-root/README.md': `# 🎉 欢迎来到笔记本
-
-你当前正在以 **游客身份** 浏览，所有编辑功能已禁用。
-
-## 📖 关于本项目
-- 基于 Alpine.js + Tailwind CSS 构建的轻量级笔记本
-- 支持 Markdown 实时预览、目录树管理、版本历史
-- 完全私有部署，数据自主可控
-
-## 🚀 快速开始
-点击右上角 **登录/注册** 按钮，创建账户后即可：
-- 📝 创建和编辑自己的笔记
-- 📁 管理个人文件夹和目录结构
-- 🔄 实时 Markdown 预览
-- ☁️ 云端同步所有笔记
-- 🔍 全文搜索功能
-
-## ✨ Markdown 示例
-\`\`\`javascript
-// 登录后可使用代码块编辑
-const welcome = () => {
-    console.log("欢迎回来！");
-};
-\`\`\`
-
-> 💡 提示：登录后你的所有笔记将安全保存在云端，随时随地访问。
-`,
-        '/guest-root/使用说明.md': `# 📋 使用说明
-
-## 🖊️ 编辑器功能
-- **单页视图**：适合浏览图片、PDF 等大文件
-- **双页视图**：左侧编辑 Markdown，右侧实时预览
-- **快捷键**：
-  - \`Ctrl+K\`：全局搜索
-  - \`Ctrl+S\`：保存当前文件
-  - \`Esc\`：关闭弹窗
-
-## 📁 目录管理
-- 支持无限层级的目录结构
-- 右键菜单支持新建/重命名/删除操作
-- 拖拽排序（登录后可用）
-
-## ⚙️ 个性化设置
-- 深色/浅色主题切换
-- 自定义字体大小
-- 快捷键自定义
-
-## 🔒 权限说明
-当前为游客模式，仅可浏览公开内容，无法进行任何写操作。所有编辑功能需登录后使用。
-`,
-        '/guest-root/流年笺设计草稿.md': `# 流年笺设计草稿
-
-## 核心架构决策
-采用 iframe 作为预览渲染沙箱，彻底隔离父页面样式与预览内容样式，避免 Tailwind 等框架的样式污染。
-
-### iframe 的优势
-1. **样式绝对隔离**：预览内容不受父页面 CSS 影响
-2. **安全沙箱**：即使存在 XSS 漏洞，也仅在 iframe 内生效
-3. **渲染性能隔离**：重型渲染库（KaTeX、Mermaid）不会影响父页面编辑流畅度
-
-### 待解决问题
-1. **滚动同步**：双页模式下需实现编辑区与预览区滚动联动
-2. **链接跳转**：iframe 内链接点击需通知父页面处理，避免仅在小窗内跳转
-3. **高度自适应**：嵌入博客时需实现 iframe 高度随内容自适应，避免嵌套滚动条
-
-## 下一步计划
-- 实现滚动同步算法
-- 优化图片懒加载逻辑
-- 添加目录树（TOC）自动生成功能
-`
-    };
-
     document.addEventListener('alpine:init', () => {
         Alpine.data('guestApp', () => ({
-            // ===== 基础状态 =====
-            viewMode: 'split',
-            sidebarCollapsed: false,
+            showAboutModal: false,
+            showSearch: false,
+
             showLoginModal: false,
             loginMode: 'login', // 'login' | 'register'
             authLoading: false,
             showPassword: false,
             loginForm: { email: '', password: '' },
 
-            // ===== 目录树（写死数据）=====
-            rootNode: {
-                id: '/guest-root',
-                type: 'dir',
-                text: '游客的文件夹',
-                expanded: true,
-                loaded: true,
-                children: [
-                    {
-                        id: '/guest-root/img',
-                        type: 'dir',
-                        text: 'img',
-                        expanded: false,
-                        loaded: false,
-                        children: []
-                    },
-                    {
-                        id: '/guest-root/README.md',
-                        type: 'file',
-                        text: 'README.md'
-                    },
-                    {
-                        id: '/guest-root/使用说明.md',
-                        type: 'file',
-                        text: '使用说明.md'
-                    },
-                    {
-                        id: '/guest-root/流年笺设计草稿.md',
-                        type: 'file',
-                        text: '流年笺设计草稿.md'
-                    }
-                ]
-            },
+            toasts: [],
+            toastIdCounter: 0,
+
+            // ============================
+            // 以下为预览逻辑
+            // ============================
+            fmBubbleOpen: false, // 控制FM气泡显示
+            // ===== 基础状态 =====
+            username: 'guest',
+            domain: 'madliar.com',
+            viewMode: 'split',
+            sidebarCollapsed: false,
             currentFile: null,
             selectedNodeId: null,
             focusedNodeId: null,
@@ -558,159 +793,66 @@ const welcome = () => {
             previewReady: false,
             syncTimer: null,
 
-            // ===== Toast 状态 =====
-            toasts: [],
-            toastIdCounter: 0,
-
-            // ===== 右键菜单 =====
-            contextMenu: { show: false, x: 0, y: 0, targetNode: null, items: [] },
-
-            // ===== 初始化 =====
             init() {
-                // 默认选中 README.md
-                this.currentFile = this.rootNode.children[1];
-                this.editorContent = GUEST_CONTENTS[this.currentFile.id];
-                this.selectedNodeId = this.currentFile.id;
-
-                // 监听 iframe 加载完成
                 window.addEventListener('message', (event) => {
                     if (event.data?.type === 'IFRAME_READY') {
                         this.previewReady = true;
-                        this.syncToPreview();
                     }
+                });
+
+                document.addEventListener('keydown', (e) => {
+                    // Ctrl+S 保存
+                    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                        e.preventDefault();
+                        this.showToast("登录以编辑文档", "info");
+                    }
+                });
+
+                // 监听来自 iframe 的消息
+                window.addEventListener('message', (event) => {
+                    // 安全校验：只处理来自我们 iframe 的消息
+                    if (event.source !== this.$refs.previewFrame?.contentWindow) return;
+                    if (event.data.type === 'IFRAME_CLICK') {
+                        this.closeAllPopups();
+                    }
+                });
+
+                // 绑定内容变更事件，触发内容同步到 iframe
+                // 因为 _doSyncPreview 涉及 FM 的解析，其结果会影响 FM icon,
+                // 所以任何内容变更都应调用 _doSyncPreview
+                // 在 _doSyncPreview 内部对视图进行判断，处理生成逻辑和 iframe 消息的发送
+                const syncPreview = () => this._doSyncPreview();
+                this.$watch('viewMode', syncPreview);
+                this.$watch('editorContent', syncPreview);
+                this.$watch('previewReady', ready => ready && syncPreview());
+                this.$watch('currentFile', (newFile, oldFile) => {
+                        if (newFile?.id !== oldFile?.id) syncPreview()
+                    },
+                    { deep: true }
+                );
+                // 编辑器键盘监听
+                this.$nextTick(() => {
+                    const editor = this.$refs.editor;
+                    if (!editor) return;
+                    editor.addEventListener('keydown', (e) => { nb_editorKeydownHandler(e, { editor: editor }); });
                 });
             },
 
-            // ===== 目录树相关 =====
-            get treeHtml() {
-                const renderNode = (node, depth = 0) => {
-                    const isDir = node.type === 'dir';
-                    const indent = depth * 14 + 10;
-                    const isSelected = this.selectedNodeId === node.id;
-                    const iconClass = isDir
-                        ? (node.expanded ? 'fas fa-folder-open text-amber-400' : 'fas fa-folder text-amber-500')
-                        : (isMarkdownType(node.text) ? 'fas fa-file-alt text-blue-400' : 'fas fa-file-image text-pink-400');
-
-                    let html = `
-                    <div class="group flex items-center px-1 py-1 cursor-pointer rounded-md transition-colors
-                        ${isSelected ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700 hover:bg-gray-100'}"
-                        style="padding-left: ${indent}px; padding-right: 12px; width: max-content; min-width: 100%;"
-                        data-node-id="${node.id}" data-node-type="${node.type}">
-                        ${isDir ? `<i class="fas fa-chevron-right text-[10px] text-gray-300 transition-transform duration-200 mr-1.5 w-3 flex-shrink-0 ${node.expanded ? 'rotate-90' : ''}"></i>` : '<div class="w-3 mr-1.5 flex-shrink-0"></div>'}
-                        <i class="${iconClass} mr-2 text-sm w-4 text-center flex-shrink-0"></i>
-                        <span class="truncate flex-1 text-sm">${escapeHtml(node.text)}</span>
-                    </div>`;
-
-                    if (isDir && node.expanded) {
-                        html += `<div class="node-children">${node.children.map(child => renderNode(child, depth + 1)).join('')}</div>`;
-                    }
-                    return html;
-                };
-                return this.rootNode.children.map(child => renderNode(child, 0)).join('');
-            },
-
-            async loadChildren(node) {
-                // 仅模拟加载 img 文件夹的子节点，不发真实请求
-                if (node.id === '/guest-root/img' && !node.loaded) {
-                    node.children = [
-                        { id: '/guest-root/img/示例1.png', type: 'file', text: '示例1.png' },
-                        { id: '/guest-root/img/示例2.jpg', type: 'file', text: '示例2.jpg' },
-                        { id: '/guest-root/img/风景.webp', type: 'file', text: '风景.webp' }
-                    ];
-                    node.loaded = true;
-                    node.expanded = true;
-                }
-            },
-
-            async toggleNode(node) {
-                if (node.type !== 'dir') return;
-                if (!node.expanded) {
-                    await this.loadChildren(node);
-                    node.expanded = true;
-                } else {
-                    node.expanded = false;
-                }
-            },
-
-            onTreeClick(event) {
-                const target = event.target.closest('[data-node-id]');
-                if (!target) return;
-                const id = target.dataset.nodeId;
-                const type = target.dataset.nodeType;
-                const node = this.findNode(id);
-                if (!node) return;
-
-                // 处理展开/折叠
-                if (event.target.closest('[data-action="toggle"]') || (type === 'dir' && !event.target.closest('[data-node-id]'))) {
-                    this.toggleNode(node);
-                    return;
-                }
-
-                // 选中文件
-                if (type === 'file') {
-                    this.currentFile = node;
-                    this.selectedNodeId = id;
-                    this.focusedNodeId = id;
-                    this.editorContent = GUEST_CONTENTS[id] || (isImageType(node.text) ? '![登录后查看原图](' + id + ')' : '# 内容不存在');
-                    this.syncToPreview();
-                }
-            },
-
-            findNode(id, nodes = this.rootNode.children) {
-                for (const node of nodes) {
-                    if (node.id === id) return node;
-                    if (node.children?.length) {
-                        const found = this.findNode(id, node.children);
-                        if (found) return found;
-                    }
-                }
-                return null;
-            },
-
-            // ===== 预览相关 =====
-            onPreviewFrameLoad() {
-                this.previewReady = true;
-                if (this.currentFile) this.syncToPreview();
-            },
-
-            syncToPreview() {
-                if (this.syncTimer) clearTimeout(this.syncTimer);
-                this.syncTimer = setTimeout(() => {
-                    if (!this.previewReady || !this.$refs.previewFrame?.contentWindow || !this.currentFile) return;
-
-                    let contentToSend = this.editorContent;
-                    // 图片文件特殊处理
-                    if (isImageType(this.currentFile.name)) {
-                        contentToSend = `<div class="image-preview">
-                            <img src="/notebook/static/images/guest-placeholder.png" alt="${this.currentFile.name}" title="登录后查看原图" style="max-width: 100%; opacity: 0.7;">
-                            <div class="image-error" style="display:block; text-align:center; padding:12px; color:#868e96;">
-                                <i class="fas fa-lock mr-2"></i>登录后查看原图
-                            </div>
-                        </div>`;
-                    }
-
-                    this.$refs.previewFrame.contentWindow.postMessage({
-                        type: 'SYNC_CONTENT',
-                        html: contentToSend,
-                        path: this.currentFile.id,
-                        username: 'guest',
-                        domain: 'example.com'
-                    }, '*');
-                }, 300);
-            },
+            navigateAway() { window.location.href = "/"; },
+            openAboutModal() { this.showAboutModal = true; },
+            closeAboutModal() { this.showAboutModal = false; },
+            doSearch() { this.showToast('登录以使用搜索', 'info'); this.showSearch = false; },
 
             // ===== 登录/注册相关 =====
             toggleLoginMode() {
                 this.loginMode = this.loginMode === 'login' ? 'register' : 'login';
                 this.loginForm.password = '';
             },
-
             closeLoginModal() {
                 this.showLoginModal = false;
                 this.loginForm = { email: '', password: '' };
                 this.authLoading = false;
             },
-
             async submitAuth() {
                 if (this.authLoading) return;
                 this.authLoading = true;
@@ -740,66 +882,184 @@ const welcome = () => {
                     this.authLoading = false;
                 }
             },
+            // ===== [UI] 通用提示、对话方法 =====
+            closeAllPopups() {
+                this.fmBubbleOpen = false;
+                window.dispatchEvent(new Event('notebook:closeAllPopups'));
+            },
+            showOverlay(message = '正在处理...') { this.overlay = { show: true, message }; },
+            hideOverlay() { this.overlay.show = false; },
+            showToast(message, type = 'info') {
+                const id = ++this.toastIdCounter;
+                this.toasts.push({ id, message, type, show: true });
 
+                setTimeout(() => {
+                    const toast = this.toasts.find(t => t.id === id);
+                    if (toast) {
+                        toast.show = false;
+                        setTimeout(() => {
+                            this.toasts = this.toasts.filter(t => t.id !== id);
+                        }, 300);
+                    }
+                }, 2500);
+            },
+
+            // ===== 初始化 =====
+            async notebook__openFile(path) {
+                const filename = path.replace(/\\/g, '/').split(/[?#]/)[0].split('/').pop() || '';
+                this.currentFile = { id: path, base: null, version: null, baseContent: '', fmStatus: null, fmLog: null }
+
+                if (isTextType(filename)) {
+                    // ---- 文本类：调 /notebook/open 接口 ----
+                    try {
+                        const res = await fetch('/notebook/open', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ filepath: path, version: null }),
+                            credentials: 'include',
+                        });
+                        const resp = await res.json();
+                        if (resp.code !== 0) throw new Error(resp.msg || '打开失败');
+
+                        const { version, base, base_content, diff } = resp.data;
+                        const fullContent = mergeContent(base_content, diff);
+
+                        this.editorContent = fullContent;
+                        this.lastSavedContent = fullContent;
+
+                        // 记录版本锚点
+                        this.currentFile.base = base;
+                        this.currentFile.version = version;
+                        this.currentFile.baseContent = base_content;
+                    } catch (e) {
+                        this.editorContent = `# 加载失败\n\n无法读取文件内容: ${filename}\n\n> 错误: ${e.message}`;
+                        this.lastSavedContent = this.editorContent;
+                        this.currentFile.base = null;
+                        this.currentFile.version = null;
+                        this.currentFile.baseContent = '';
+                    }
+                } else if (isImageType(filename)) {
+                    // ---- 图片类 ----
+                    this.editorContent = `![](${filename})`;
+                    this.lastSavedContent = this.editorContent;
+                } else {
+                    // ---- 其他文件 ----
+                    const encodedPath = encodeURIComponent(path);
+                    this.editorContent = `<a href="/notebook/raw_file?path=${encodedPath}" target="_blank">📎 点击下载/打开文件：${filename}</a>`;
+                    this.lastSavedContent = this.editorContent;
+                }
+            },
+            notebook__closeFile() {
+                // 强制关闭文档
+                this.currentFile = null;
+                this.editorContent = '';
+                this.lastSavedContent = '';
+                this.lastCommitMd5 = '';
+                this.isSaving = false;
+                this.fmBubbleOpen = false;
+            },
+            closeCurrentFileAndDeselect() {
+                // 1. 清空编辑框、关闭当前文件
+                this.notebook__closeFile();
+                window.dispatchEvent(new Event('notebook:closeFile'));
+            },
+            _doSyncPreview() {
+                if (this.syncTimer) clearTimeout(this.syncTimer);
+                this.syncTimer = setTimeout(() => {
+                    let contentToSend = '';
+                    try {
+                        const filepath = this.currentFile?.id || '';
+                        let pureInput = this.editorContent;
+
+                        if (isMarkdownType(filepath)) {
+                            // Markdown 文件：直接渲染
+                            const rendered = renderMarkdown(pureInput, filepath, this.username, this.domain);
+                            contentToSend = rendered.html;
+                            // 更新 FM 状态
+                            if (this.currentFile) {
+                                this.currentFile.fmStatus = rendered.status;
+                                this.currentFile.fmLog = rendered.log;
+                            }
+                        } else if (isCodeType(filepath)) {
+                            // 代码文件：包成 Markdown 代码块，复用渲染管线
+                            const lang = getCodeLang(filepath);
+                            // 处理代码内容里的反引号：如果内容里有连续3个反引号，用4个反引号包裹避免语法冲突
+                            const fenceLen = Math.max(3, (pureInput.match(/`+/g) || []).reduce((max, m) => Math.max(max, m.length), 0) + 1);
+                            const fence = '`'.repeat(fenceLen);
+                            // 转义内容里的反斜杠（避免 Markdown 转义问题）
+                            const escapedContent = pureInput.replace(/\\/g, '\\\\');
+                            // 拼接成 Markdown 代码块
+                            pureInput = `${fence}${lang}\n${escapedContent}\n${fence}`;
+                            // 交给 Markdown 渲染，自动触发代码高亮
+                            const rendered = renderMarkdown(pureInput, filepath, this.username, this.domain);
+                            contentToSend = rendered.html;
+                            // 代码文件不需要 FM 校验
+                            if (this.currentFile) {
+                                this.currentFile.fmStatus = null;
+                                this.currentFile.fmLog = '';
+                            }
+                        } else if (isPlainTextType(filepath)) {
+                            // 纯文本文件：用原来的样式包裹
+                            pureInput = `<div class="plain-text-preview">${escapeHtml(this.editorContent)}</div>`;
+                            const rendered = renderMarkdown(pureInput, filepath, this.username, this.domain);
+                            contentToSend = rendered.html;
+                            if (this.currentFile) {
+                                this.currentFile.fmStatus = null;
+                                this.currentFile.fmLog = '';
+                            }
+                        } else  if (isImageType(filepath)) {
+                            const rendered = renderMarkdown(pureInput, filepath, this.username, this.domain);
+                            contentToSend = rendered.html;
+                            if (this.currentFile) {
+                                this.currentFile.fmStatus = null;
+                                this.currentFile.fmLog = '';
+                            }
+                        } else {
+                            // 其他类型（图片/二进制等）：保持原有逻辑
+                            contentToSend = `<div class="text-gray-500 p-4">不支持预览的文件类型</div>`;
+                        }
+                    } catch (e) {
+                        contentToSend = `<div class="text-red-500 p-4">渲染失败: ${escapeHtml(e.message)}</div>`;
+                    }
+
+                    if (!this.previewReady) return;
+                    const iframe = document.querySelector('iframe[x-ref="previewFrame"]');
+                    if (!iframe?.contentWindow) {
+                        console.warn('预览iframe未就绪，跳过同步');
+                        return;
+                    }
+                    iframe.contentWindow.postMessage({
+                        type: 'SYNC_CONTENT',
+                        html: contentToSend,
+                        path: this.currentFile?.id || '',
+                        username: this.username,
+                        domain: this.domain,
+                    }, '*');
+                }, 300);
+            },
+            // ============================
+            // [Editor] 编辑框方法
+            // ============================
+            formatPath(path, maxLen = 45) {
+                if (!path) return '';
+                if (path.length <= maxLen) return path;
+                const half = Math.floor((maxLen - 3) / 2);
+                return path.substring(0, half) + '...' + path.substring(path.length - half);
+            },
+            copyPath() {
+                if (this.currentFile?.id) {
+                    navigator.clipboard.writeText(this.currentFile.id).then(() => {
+                        this.showToast('路径已复制到剪贴板', 'success');
+                    }).catch(() => {
+                        this.showToast('复制失败', 'error');
+                    });
+                }
+            },
             // ===== 游客操作拦截 =====
             handleGuestAction(action) {
                 this.showToast('未登录，无法执行此操作', 'info');
                 this.closeContextMenu();
             },
-
-            copyPath() {
-                this.showToast('未登录，无法复制路径', 'info');
-            },
-
-            // ===== 工具函数 =====
-            formatPath(path, maxLen = 45) {
-                if (!path) return '';
-                const name = path.split('/').pop();
-                return name.length > maxLen ? name.substring(0, maxLen) + '...' : name;
-            },
-
-            showToast(message, type = 'info') {
-                const id = ++this.toastIdCounter;
-                this.toasts.push({ id, message, type, show: true });
-                setTimeout(() => {
-                    const toast = this.toasts.find(t => t.id === id);
-                    if (toast) toast.show = false;
-                }, 2500);
-            },
-
-            closeContextMenu() {
-                this.contextMenu.show = false;
-            },
-
-            onTreeRightClick(event) {
-                const target = event.target.closest('[data-node-id]');
-                if (!target) return;
-                const id = target.dataset.nodeId;
-                const type = target.dataset.nodeType;
-                const nodeData = this.findNode(id);
-                if (!nodeData) return;
-
-                this.focusedNodeId = id;
-                this.contextMenu = {
-                    show: true,
-                    x: event.clientX,
-                    y: event.clientY,
-                    targetNode: nodeData,
-                    items: type === 'dir'
-                        ? [
-                            { label: '📂 新建目录', action: 'mkdir' },
-                            { label: '📄 新建文件', action: 'newfile' },
-                            { label: '⬆️ 上传文件', action: 'upload' },
-                            { divider: true },
-                            { label: '✏️ 重命名', action: 'rename' },
-                            { label: '🗑️ 删除', action: 'delete', danger: true }
-                        ]
-                        : [
-                            { label: '✏️ 重命名', action: 'rename' },
-                            { label: '🗑️ 删除', action: 'delete', danger: true }
-                        ]
-                };
-            }
         }));
     });
 </script>

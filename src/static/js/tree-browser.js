@@ -41,7 +41,9 @@ document.addEventListener('alpine:init', () => {
             window.addEventListener('notebook:closeFile', () => {
                 this.selectedFileNode = null;
             });
-
+            window.addEventListener('notebook:closeAllPopups', () => {
+                this.closeContextMenu();
+            });
             // 页面卸载时清理拖拽事件
             window.addEventListener('beforeunload', () => {
                 if (this.dragging) {
@@ -541,7 +543,6 @@ document.addEventListener('alpine:init', () => {
         showContextMenu(event, node) {
             const { id, type, name } = node;
             const dir = isDirType(type);
-            const isBlogDir = id === '/blog' || id.startsWith('/blog/');
             const md = isMarkdownType(name);
             const img = isImageType(name);
 
@@ -550,14 +551,12 @@ document.addEventListener('alpine:init', () => {
                 items.push({ label: '📂 新建目录', action: 'mkdir' });
                 items.push({ label: '📄 新建文件', action: 'newfile' });
                 items.push({ label: '⬆️ 上传文件', action: 'upload' });
-                if (node.id !== '/') {
-                    items.push({ divider: true });
+                items.push({ divider: true });
+                if (node.id === '/') {
+                    items.push({ label: '🚀 生成站点', action: 'publish' });
+                } else {
                     items.push({ label: '✏️ 重命名', action: 'rename' });
                     items.push({ label: '🗑️ 删除', action: 'delete', danger: true });
-                }
-                if (isBlogDir) {
-                    items.push({ divider: true });
-                    items.push({ label: '🚀 发布博客', action: 'publish' });
                 }
             } else {
                 if (md) items.push({ label: '📝 打开编辑', action: 'open' });
@@ -582,7 +581,7 @@ document.addEventListener('alpine:init', () => {
                 case 'rename':   await this.ctxRename(node);   break;
                 case 'delete':   await this.ctxDelete(node);   break;
                 case 'share':    await this.notebook__openSharePage(node.id); break;
-                case 'publish':  await this.notebook__publishBlog(); break;
+                case 'publish':  await this.notebook__publishBlog(node.id); break;
             }
         },
         async ctxOpenFile(node) {

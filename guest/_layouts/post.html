@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}<title>{{ this.title }} - 来自Madliar</title>{% endblock %}
+
+{% block extra_headers %}
+<link rel="stylesheet" href="../../new_blog.css">
+{% endblock %}
+
+
+{% block page_body %}
+<div class="second-title">{{ this.fm.title }}</div>
+<div class="article-property">
+
+    {% if this.fm.category %}
+    <span class="article-property-item">分类：
+        <a href="/notebook/publish/{{ user }}/{{ service }}/category.html#{{ this.fm.category }}">{{ this.fm.category }}</a>
+    </span>
+    {% endif %}
+
+    {% if this.fm.tags %}
+    <span class="article-property-item">标签：
+        {% for tag in this.fm.tags %}
+            <span class="article-property-tag">{{ tag }}</span>{% if not loop.last %}, {% endif %}
+        {% endfor %}
+    </span>
+    {% endif %}
+
+    <span class="article-property-item">发布于: {{ this.fm.date }}</span>
+</div>
+<div class="article-show">{{ this.rendered_html }}</div>
+{% endblock %}

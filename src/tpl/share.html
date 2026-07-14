@@ -6,7 +6,6 @@
 
     <title>{{ title }} · 流年笺</title>
 
-    <!-- SEO / 社交分享 -->
     <meta name="description" content="来自流年笺的分享笔记">
     <meta property="og:title" content="{{ title }} · 流年笺">
     <meta property="og:description" content="来自流年笺的分享笔记">
@@ -145,7 +144,18 @@
         // ✅ 从 textarea 读取，不经过 JS 字符串解析
         const rawContent = document.getElementById('rawContent').value;
 
-        /**
+        let user = 'guest';
+        let service = 'madliar.com';
+        let filepath = '/';
+
+        const match = window.location.pathname.match(/^\/notebook\/share\/([^\/]+)\/([^\/]+)\/(.+)$/);
+        if (match) {
+            user = match[1];
+            service = match[2];
+            filepath = '/' + match[3]
+        }
+
+        /*
          * 向 iframe 发送内容
          */
         function sendContent() {
@@ -156,7 +166,7 @@
                 }, '*');
                 return;
             }
-            const rendered = renderMarkdown(rawContent, '/', 'null', 'null');
+            const rendered = renderMarkdown(rawContent, filepath, user, service);
             iframe.contentWindow.postMessage({
                 type: 'SYNC_CONTENT',
                 html: rendered.html,

@@ -1,5 +1,7 @@
 import mimetypes
-from src.framework.error import ErrorWithPrompt, NotFound
+from fastapi import HTTPException
+from starlette.status import HTTP_404_NOT_FOUND
+from src.framework.error import ErrorWithPrompt
 from .filesystem.local import StorageBackend
 from .path_conf import get_storage, get_user_storage_root, get_user_meta_root, get_share_mark_filepath
 from .versioning_adaptor import VersioningAdapter
@@ -64,7 +66,7 @@ class ShareAdapter:
     async def get_share(self, file: str) -> tuple[str, str | bytes]:
         """ 获取分享的 mimetype 和文件内容 """
         if not await self.test_share(file):
-            raise NotFound()
+            raise HTTPException(status_code=HTTP_404_NOT_FOUND)
 
         # 针对图片文件，直接读取
         target_file = f"{self.storage_root}/{file.lstrip('/')}"

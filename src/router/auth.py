@@ -23,7 +23,7 @@ async def register(
         return {
             "code": 400,
             "msg": "此站点不再支持注册。你可以自行部署此网站的开源版本，具体请访问："
-                   '<a href="https://github.com/cl-ei/notebook.madliar">https://github.com/cl-ei/notebook.madliar</a>'
+                   "https://github.com/cl-ei/notebook-liunianjian"
         }
 
     email_pattern = re.compile(r"^[A-Za-z\d]+([-_.][A-Za-z\d]+)*@([A-Za-z\d]+[-.])+[A-Za-z\d]{2,4}$")

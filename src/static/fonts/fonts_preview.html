@@ -203,10 +203,6 @@
         .jbm-800i { font-family: 'JetBrains Mono', monospace; font-weight: 800; font-style: italic; }
         .jbm-900 { font-family: 'JetBrains Mono', monospace; font-weight: 900; font-style: normal; }
         .jbm-900i { font-family: 'JetBrains Mono', monospace; font-weight: 900; font-style: italic; }
-        /* DinkieBitmap 像素字体样式 */
-        .dinkie-400 { font-family: 'DinkieBitmap', monospace; font-weight: 400; font-style: normal; font-size: 12px; }
-        .dinkie-400i { font-family: 'DinkieBitmap', monospace; font-weight: 400; font-style: italic; font-size: 12px; }
-        .dinkie-mono-400 { font-family: 'DinkieBitmap Mono', monospace; font-weight: 400; font-style: normal; font-size: 12px; }
         /* 代码块样式 */
         .code-block {
             font-family: 'JetBrains Mono', monospace;
@@ -506,50 +502,6 @@
         </div>
     </div>
 </section>
-<!-- 四、DinkieBitmap 像素字体（特殊场景） -->
-<section class="section">
-    <h2 class="section-title">4. DinkieBitmap 像素字体（特殊场景）</h2>
-    <p class="section-desc">用于小尺寸标签、状态标识、复古风格UI，仅支持9px大小，适合低分辨率场景。</p>
-    <div class="two-column">
-        <!-- 常规像素字体 -->
-        <div class="sample-group">
-            <div class="sample-label">
-                <span class="weight-tag">DinkieBitmap Regular</span>
-                <span>常规像素字体</span>
-            </div>
-            <div class="sample-text dinkie-400">
-                像素字体测试：ABCabc123!@# 中文回退系统字体<br>
-                [INFO] 系统启动成功<br>
-                [WARN] 内存使用率85%<br>
-                [ERR] 文件读取失败
-            </div>
-            <div class="sample-text dinkie-400i" style="margin-top: 0.5rem;">
-                斜体像素字体：*斜体* _下划线_ ~删除线~
-            </div>
-        </div>
-        <!-- 等宽像素字体 -->
-        <div class="sample-group">
-            <div class="sample-label">
-                <span class="weight-tag">DinkieBitmap Mono</span>
-                <span>等宽像素字体</span>
-            </div>
-            <div class="sample-text dinkie-mono-400">
-                // 像素代码块
-                function test() {
-                let x = 10;
-                let y = 20;
-                return x + y;
-                }
-                // 中英文混排：Hello 世界！
-            </div>
-            <div style="margin-top: 1rem;">
-                <span class="dinkie-400" style="background: #22c55e; color: white; padding: 0.125rem 0.5rem; border-radius: 999px; margin-right: 0.5rem;">在线</span>
-                <span class="dinkie-400" style="background: #eab308; color: white; padding: 0.125rem 0.5rem; border-radius: 999px; margin-right: 0.5rem;">忙碌</span>
-                <span class="dinkie-400" style="background: #ef4444; color: white; padding: 0.125rem 0.5rem; border-radius: 999px;">离线</span>
-            </div>
-        </div>
-    </div>
-</section>
 <!-- 五、综合混排测试 -->
 <section class="section">
     <h2 class="section-title">5. 综合混排测试（模拟真实笔记场景）</h2>
@@ -570,7 +522,7 @@
             ---
         </div>
         <div class="sample-text inter-400" style="margin-bottom: 1rem;">
-            <strong style="font-weight: 600;">前言</strong>：本文档用于预览 Notebook 项目中的所有离线字体，包括 Inter 常规/Display、JetBrains Mono 等宽字体、DinkieBitmap 像素字体。所有字体均通过 <code>fonts.css</code> 加载，无需联网即可使用。
+            <strong style="font-weight: 600;">前言</strong>：本文档用于预览 Notebook 项目中的所有离线字体，包括 Inter 常规/Display、JetBrains Mono 等宽字体 像素字体。所有字体均通过 <code>fonts.css</code> 加载，无需联网即可使用。
             <br><br>
             <strong style="font-weight: 600;">注意事项</strong>：Inter 是纯西文字体，中文部分会自动回退至系统字体。如果需要统一中文字体，可后续添加思源黑体或霞鹜文楷，只需在 <code>fonts.css</code> 中添加对应的 <code>@font-face</code> 规则即可。
         </div>

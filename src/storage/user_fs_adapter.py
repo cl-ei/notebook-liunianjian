@@ -1,10 +1,12 @@
 import logging
 import mimetypes
 from pathlib import Path
+from fastapi import HTTPException
 from .filesystem.local import StorageBackend
 from .schemas import FileLike
-from ..framework.error import ErrorWithPrompt, NotFound
+from ..framework.error import ErrorWithPrompt
 from .path_conf import get_storage, get_user_storage_root, get_user_meta_root
+from typing import Callable
 
 
 class UserFSAdapter:
@@ -15,6 +17,14 @@ class UserFSAdapter:
 
         self._storage_root = get_user_storage_root(email)
         self._meta_root = get_user_meta_root(email)
+
+    def resolve(self, path: str) -> str:
+        root = Path(self.storage_root)
+        real_path = (root / path).resolve()
+        # 防止 ../.. 逃逸
+        if not real_path.is_relative_to(root):
+            raise PermissionError("Invalid path")
+        return str(real_path)
 
     @property
     def storage_root(self) -> str:
@@ -135,11 +145,11 @@ class UserFSAdapter:
             (mimetype, content) : MIME 类型和文件二进制内容
 
         Raises:
-            NotFound: 文件不存在时抛出
+            HTTPException
         """
         target_file = f"{self.storage_root}/{filepath.lstrip('/')}"
         if not await self.storage.exists(target_file):
-            raise NotFound()
+            raise HTTPException(status_code=404)
 
         mimetype = mimetypes.guess_type(str(target_file))[0] or "application/octet-stream"
         if isinstance(mimetype, str) and mimetype.startswith("image/"):
@@ -195,3 +205,81 @@ class UserFSAdapter:
         except Exception as e:
             # 兜底捕获底层异常，避免暴露内部实现
             raise ErrorWithPrompt(f"移动失败：{str(e)}")
+
+    async def find_files(self, src: str, filename_filter: Callable[[str], bool]) -> list[str]:
+        """
+        在用户目录下的 src 路径里搜索文件，返回相对路径的文件列表
+
+        Args:
+            src: str 用户 storage root 下的路径
+            filename_filter: Callable, 传回文件名，返回 False 则不计入
+
+        Returns:
+            list[str]: 匹配的文件相对路径列表（相对于 storage_root, 即用户根目录）
+        """
+        results = []
+        src_full = f"{self.storage_root}/{src.lstrip('/')}"
+
+        # 源路径不存在则返回空列表
+        if not await self.storage.exists(src_full):
+            return results
+
+        # 使用栈实现深度优先遍历（DFS）
+        stack = [src_full]
+
+        while stack:
+            current_path = stack.pop()
+            # 列出当前目录内容
+            children = await self.storage.listdir(current_path)
+
+            for child in children:
+                full_child_path = f"{current_path.rstrip('/')}/{child}"
+                if await self.storage.is_file(full_child_path):
+                    if not filename_filter(child):
+                        continue
+
+                    rel_path = "/" + Path(full_child_path).relative_to(Path(self.storage_root)).as_posix()
+                    results.append(str(rel_path))
+
+                elif await self.storage.is_dir(full_child_path):
+                    stack.append(full_child_path)
+
+        return sorted(results)  # 按路径排序返回
+
+    async def copy_tree(self, src: str, dst: str, overwrite: bool = False) -> None:
+        """
+        异步递归拷贝目录
+        """
+        src_p = self.resolve(src)
+        dst_p = self.resolve(dst)
+
+        if not await self.storage.is_dir(src_p):
+            raise NotADirectoryError(f"Source directory not found: {src}")
+
+        if await self.storage.exists(dst):
+            if not overwrite:
+                raise FileExistsError(f"Destination directory already exists: {dst}")
+            # 递归删除目标目录
+            await self.storage.remove_tree(dst)
+
+        # 创建目标根目录
+        await self.storage.mkdir(dst_p, parents=True)
+
+        # 遍历源目录
+        stack = [(src_p, dst_p)]
+        while stack:
+            current_src, current_dst = stack.pop()
+
+            # 列出当前目录内容
+            entries = await self.storage.listdir(current_src)
+
+            for entry_name in entries:
+                src_child = "%s/%s" % (current_src, entry_name)
+                dst_child = "%s/%s" % (current_dst, entry_name)
+
+                if await self.storage.is_file(src_child):
+                    # 如果是文件，直接拷贝
+                    await self.storage.copy(src_child, dst_child)
+                elif await self.storage.is_dir(src_child):
+                    # 如果是目录，直接入栈 （无需创建目录，会在复制时直接创建）
+                    stack.append((src_child, dst_child))

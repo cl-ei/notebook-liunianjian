@@ -4,6 +4,7 @@ from src import utils
 from src.utils.global_lock import GlobalLock
 from src.framework.error import ErrorWithPrompt
 from src.storage.auth_adapter import AuthAdapter
+from src.framework.config import IS_PROD, RESERVED_EMAIL
 
 
 class Encryptor:
@@ -22,6 +23,12 @@ class AuthMgr:
 
     @classmethod
     async def register(cls, email: str, password: str) -> str:
+        if IS_PROD:
+            raise ErrorWithPrompt("本站点已关闭注册")
+
+        if email == RESERVED_EMAIL:
+            raise ErrorWithPrompt("禁止使用保留的email")
+
         async with GlobalLock(name=f"login:{email}", try_times=1) as lock:
             if not lock.locked:
                 raise ErrorWithPrompt("操作频繁，请稍后再试")

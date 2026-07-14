@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block title %}<title>Madliar 博客</title>{% endblock %}
+
+
+{% block page_body %}
+<div class="second-title">最近发布</div>
+<div class="article-wrapper">
+    {% for article in post %}
+    <div class="article-bar">
+        <a href="{{ article.dest_url }}">
+            <span class="article-date">{{ article.fm.date }}</span>
+            <span class="article-title">{{ article.fm.title }}</span>
+        </a>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

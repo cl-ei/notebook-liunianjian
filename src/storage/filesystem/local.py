@@ -65,3 +65,18 @@ class LocalStorage(StorageBackend):
     async def stat(self, path: str) -> tuple[int, float]:
         st = await aios.stat(self._resolve(path))
         return st.st_size, st.st_mtime
+
+    async def copy(self, src: str, dst: str) -> None:
+        """
+        copy file
+        """
+        src = self._resolve(src)
+        dst = self._resolve(dst)
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        async with aiofiles.open(src, "rb") as fsrc:
+            async with aiofiles.open(dst, "wb") as fdst:
+                while True:
+                    chunk = await fsrc.read(1024 * 64)
+                    if not chunk:
+                        break
+                    await fdst.write(chunk)

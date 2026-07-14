@@ -2,11 +2,11 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.cors import CORSMiddleware
 from src.router import auth, editor, fs, home
-from src.framework.config import DEBUG, BLOG_ROOT
+from src.framework.config import DEBUG
 from src.framework.midddleware import ErrorCatchMiddleware
 
 
-PROJECT_NAME = "notebook.madliar"
+PROJECT_NAME = "https://github.com/cl-ei/notebook-liunianjian"
 VERSION = "1.0"
 
 
@@ -27,7 +27,6 @@ def get_application() -> FastAPI:
     )
     application.add_middleware(ErrorCatchMiddleware)
     application.mount("/notebook/static", StaticFiles(directory="src/static"), name="static")
-    application.mount("/notebook/publish", StaticFiles(directory=BLOG_ROOT), name="blog")
     application.include_router(auth.router, prefix="", tags=["auth"])
     application.include_router(editor.router, prefix="", tags=["blog"])
     application.include_router(fs.router, prefix="", tags=["fs"])

@@ -1,4 +1,4 @@
-from src.framework.config import STORAGE_ROOT, BLOG_ROOT
+from src.framework.config import STORAGE_ROOT
 from .filesystem.local import StorageBackend, LocalStorage
 
 _storage: StorageBackend | None = None
@@ -29,11 +29,6 @@ def get_user_storage_root(email: str) -> str:
 
 def get_user_meta_root(email: str) -> str:
     return f"{STORAGE_ROOT}/{email}/meta"
-
-
-def get_user_blog_version_filepath(email: str) -> str:
-    user, service = email.split("@", 1)
-    return f"{BLOG_ROOT}/{user}/{service}/version.txt"
 
 
 def get_share_mark_filepath(email: str, file: str) -> str:

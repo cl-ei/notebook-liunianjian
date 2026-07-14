@@ -12,9 +12,76 @@ function isImageType(filepath) {
     if (!filepath) return false;
     return /\.(png|jpg|jpeg|gif|svg|webp)$/i.test(filepath);
 }
-function isTextType(filepath) {
+
+const CODE_LANG_MAP = {
+    // YAML
+    'yml': 'yaml',
+    'yaml': 'yaml',
+    // Shell
+    'sh': 'shell',
+    'bash': 'shell',
+    // C/C++
+    'c': 'c',
+    'cpp': 'cpp',
+    'cc': 'cpp',
+    'h': 'c',
+    'hpp': 'cpp',
+    // Web
+    'html': 'html',
+    'htm': 'html',
+    'css': 'css',
+    'scss': 'scss',
+    'less': 'less',
+    'js': 'javascript',
+    'ts': 'typescript',
+    // 后端语言
+    'py': 'python',
+    'go': 'go',
+    'java': 'java',
+    'rs': 'rust',
+    'php': 'php',
+    'rb': 'ruby',
+    'swift': 'swift',
+    'kt': 'kotlin',
+    'dart': 'dart',
+    // 配置/数据
+    'json': 'json',
+    'xml': 'xml',
+    'ini': 'ini',
+    'conf': 'ini',
+    'cfg': 'ini',
+    'env': 'bash',
+};
+
+/**
+ * 根据文件名获取代码语言标识
+ */
+function getCodeLang(filepath) {
+    if (!filepath) return 'plaintext';
+    const ext = filepath.split('.').pop().toLowerCase();
+    return CODE_LANG_MAP[ext] || 'plaintext';
+}
+
+/**
+ * 判断是否为代码文件（需要高亮的类型）
+ */
+function isCodeType(filepath) {
     if (!filepath) return false;
-    return /\.(md|markdown|txt|text|html|htm|xml|json|yaml|yml|ini|conf|sh|bash|js|ts|py|go|java|c|cpp|rs|css|scss|less)$/i.test(filepath);
+    // 后缀 -> 语言标识的映射表（后面要用）
+    return /\.(json|ya?ml|xml|html?|css|scss|less|js|ts|py|go|java|c|cpp|cc|h|hpp|rs|sh|bash|php|rb|swift|kt|dart)$/i.test(filepath);
+}
+
+/**
+ * 判断是否为纯文本文件（不需要高亮，用原来的 plain-text-preview 包裹）
+ */
+function isPlainTextType(filepath) {
+    if (!filepath) return false;
+    return /\.(txt|text|log|ini|conf|cfg|env|gitignore|dockerignore)$/i.test(filepath);
+}
+
+// 原来的 isTextType 可以保留作为兜底，也可以直接废弃
+function isTextType(filepath) {
+    return isCodeType(filepath) || isPlainTextType(filepath) || isMarkdownType(filepath);
 }
 
 function getFilename(filepath) {
@@ -283,19 +350,6 @@ function _parseFrontMatter(content) {
                 content
             };
         }
-        // 校验是否包含多个冒号（允许值里有冒号，比如date里的:，但键里不能有）
-        if (trimmed.indexOf(':', colonIdx + 1) !== -1 && !trimmed.startsWith('date:')) {
-            // 排除date字段的正常冒号
-            const keyPart = trimmed.slice(0, colonIdx);
-            const valPart = trimmed.slice(colonIdx + 1);
-            if (valPart.split(':').length - 1 > 1) {
-                return {
-                    status: -1,
-                    log: `第${parseLine}行：键值对包含多余冒号，仅允许值中存在单个冒号（如date字段）`,
-                    content
-                };
-            }
-        }
 
         const key = trimmed.slice(0, colonIdx).trim();
         const valRaw = trimmed.slice(colonIdx + 1).trim();
@@ -402,10 +456,7 @@ function renderMarkdown(content, filePath, username, domain) {
     // 渲染 Markdown
     // 首先提取 FM 的部分
     const fmResult = _parseFrontMatter(content);
-    console.log("fmResult: ", fmResult);
-
     const rawHtml = marked.parse(fmResult.content, { renderer });
-    console.log("rawHtml: ", rawHtml);
 
     const html = DOMPurify.sanitize(rawHtml, {
         ADD_TAGS: ['img'],
@@ -415,4 +466,167 @@ function renderMarkdown(content, filePath, username, domain) {
     });
 
     return {status: fmResult.status, log: fmResult.log, html: html}
+}
+
+/* ==================== 编辑器核心工具函数（新增部分） ==================== */
+/**
+ * 判断当前文件是否支持文本编辑
+ * @param {string} fileId - 文件ID（路径）
+ * @returns {boolean}
+ */
+function nb_isTextEditable(fileId) {
+    return isTextType(fileId || '');
+}
+
+/**
+ * 获取编辑器当前选区位置
+ * @param {HTMLTextAreaElement} editor - textarea DOM实例
+ * @returns {{start: number, end: number}}
+ */
+function nb_getEditorSelection(editor) {
+    if (!editor || editor.tagName !== 'TEXTAREA') return { start: 0, end: 0 };
+    return {
+        start: editor.selectionStart,
+        end: editor.selectionEnd
+    };
+}
+
+/**
+ * 编辑器键盘事件总入口（所有按键逻辑统一分发）
+ * @param {KeyboardEvent} event - 键盘事件对象
+ * @param {Object} ctx - 上下文对象
+ * @param {HTMLTextAreaElement} ctx.editor - textarea DOM实例
+ * @param {Function} ctx.isTextFile - 判断是否为文本文件的函数
+ */
+function nb_editorKeydownHandler(event, ctx) {
+    const { editor } = ctx;
+
+    // 前置校验：非文本文件/输入法输入中不干预（避免打断中文输入）
+    if (!editor || event.isComposing) return;
+
+    // 1. Tab/Shift+Tab：缩进控制
+    if (event.key === 'Tab') {
+        event.preventDefault();
+        nb_handleEditorTab(event, editor);
+        return;
+    }
+
+    // 2. Enter：自适应缩进
+    if (event.key === 'Enter' && !event.isComposing) {
+        event.preventDefault();
+        nb_handleEditorEnter(editor);
+        return;
+    }
+
+    // 3. 配对字符：自动包裹选中文本（支持 " ' ` ( ) [ ] { }）
+    const PAIR_CHARS = {
+        '"': '"', "'": "'", '`': '`',
+        '(': ')', ')': '(',
+        '[': ']', ']': '[',
+        '{': '}', '}': '{'
+    };
+    if (PAIR_CHARS[event.key] && !event.isComposing) {
+        event.preventDefault();
+        nb_handleEditorPairChar(event, editor, PAIR_CHARS[event.key]);
+        return;
+    }
+}
+
+/**
+ * 处理Tab/Shift+Tab缩进（完全兼容原生撤销栈）
+ * @param {KeyboardEvent} event - 键盘事件对象
+ * @param {HTMLTextAreaElement} editor - textarea DOM实例
+ */
+function nb_handleEditorTab(event, editor) {
+    const INDENT = '    '; // 默认4空格，后续可加FM配置控制
+    const { start, end } = nb_getEditorSelection(editor);
+    const content = editor.value;
+
+    // ---------- 无选中文本：处理当前行缩进 ----------
+    if (start === end) {
+        if (event.shiftKey) {
+            // Shift+Tab：删除当前行左侧的缩进（最多删4个，不足则全删）
+            const beforeCursor = content.slice(0, start);
+            const lineStart = beforeCursor.lastIndexOf('\n') + 1;
+            const currentLine = content.slice(lineStart, start);
+            const indentMatch = currentLine.match(/^(\s*)/);
+            const currentIndent = indentMatch ? indentMatch[1] : '';
+            const deleteLen = Math.min(INDENT.length, currentIndent.length);
+            if (deleteLen > 0) {
+                // 1. 选中要删除的缩进内容
+                editor.setSelectionRange(lineStart, lineStart + deleteLen);
+                // 2. 执行删除命令，浏览器自动记录到撤销栈
+                document.execCommand('delete', false);
+            }
+        } else {
+            // Tab：插入4空格，浏览器自动记录到撤销栈
+            document.execCommand('insertText', false, INDENT);
+        }
+        return;
+    }
+
+    // ---------- 有选中文本：按行处理缩进 ----------
+    const selected = content.slice(start, end);
+    const selectedLines = selected.split('\n');
+    let newSelected;
+
+    if (event.shiftKey) {
+        // Shift+Tab：减少每行缩进（最多删4个，不足则全删，无缩进的行不变）
+        newSelected = selectedLines.map(line => {
+            const indentMatch = line.match(/^(\s*)/);
+            const lineIndent = indentMatch ? indentMatch[1] : '';
+            const deleteLen = Math.min(INDENT.length, lineIndent.length);
+            return deleteLen > 0 ? line.slice(deleteLen) : line;
+        }).join('\n');
+    } else {
+        // Tab：给每行加4空格
+        newSelected = selectedLines.map(line => INDENT + line).join('\n');
+    }
+
+    // 1. 选中原来的内容
+    editor.setSelectionRange(start, end);
+    // 2. 替换选中内容，浏览器自动记录到撤销栈
+    document.execCommand('insertText', false, newSelected);
+}
+
+/**
+ * 处理Enter自适应缩进（完全兼容原生撤销栈）
+ * @param {HTMLTextAreaElement} editor - textarea DOM实例
+ */
+function nb_handleEditorEnter(editor) {
+    const LINE_BREAK = '\n';
+    const { start } = nb_getEditorSelection(editor);
+    const content = editor.value;
+
+    // 获取当前行的缩进（行首到光标前的所有空格）
+    const beforeCursor = content.slice(0, start);
+    const lineStart = beforeCursor.lastIndexOf(LINE_BREAK) + 1;
+    const currentLine = content.slice(lineStart, start);
+    const indentMatch = currentLine.match(/^(\s*)/);
+    const indent = indentMatch ? indentMatch[1] : '';
+
+    // 插入换行+缩进，浏览器自动记录到撤销栈
+    document.execCommand('insertText', false, LINE_BREAK + indent);
+}
+
+/**
+ * 处理配对字符自动包裹（完全兼容原生撤销栈）
+ * @param {KeyboardEvent} event - 键盘事件对象
+ * @param {HTMLTextAreaElement} editor - textarea DOM实例
+ * @param {string} closeChar - 对应的闭合字符
+ */
+function nb_handleEditorPairChar(event, editor, closeChar) {
+    const openChar = event.key;
+    const { start, end } = nb_getEditorSelection(editor);
+
+    if (start === end) {
+        // 无选中文本：插入配对字符，光标停在中间
+        document.execCommand('insertText', false, openChar + closeChar);
+        // 移动光标到两个字符中间（仅移动光标，不修改内容，不影响撤销栈）
+        editor.setSelectionRange(start + 1, start + 1);
+    } else {
+        // 有选中文本：包裹选中内容，光标停在末尾
+        const selectedText = editor.value.slice(start, end);
+        document.execCommand('insertText', false, openChar + selectedText + closeChar);
+    }
 }

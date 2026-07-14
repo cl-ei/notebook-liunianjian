@@ -33,7 +33,6 @@
 
 body {
     font-family:
-            'LXGW WenKai Mono',      /* 1️⃣ 首选：中文等宽楷体 */
             'JetBrains Mono',        /* 2️⃣ 英文等宽 */
             'Sarasa Mono SC',        /* 3️⃣ 中文等宽黑体（开发者常用） */
             'Noto Sans Mono CJK SC', /* 4️⃣ 安卓 / Linux 中文等宽 */
@@ -114,7 +113,7 @@ body {
     font-size: 85%;
     background-color: rgba(27, 31, 35, 0.05);
     border-radius: 3px;
-    font-family: "JetBrains Mono", "LXGW WenKai Mono", Consolas, monospace;
+    font-family: "JetBrains Mono", Consolas, monospace;
 }
 
 #content pre {

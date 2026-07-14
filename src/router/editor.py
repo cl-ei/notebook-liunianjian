@@ -1,23 +1,25 @@
 import os
-import time
-
-from fastapi import APIRouter, Path, Cookie, Depends, Request, Body
-from fastapi.responses import Response
+import mimetypes
+from urllib.parse import unquote
+from fastapi import APIRouter, Path, Cookie, Depends, Request, Body, HTTPException
+from starlette.responses import Response
+from starlette.status import HTTP_404_NOT_FOUND, HTTP_403_FORBIDDEN, HTTP_500_INTERNAL_SERVER_ERROR
 
 from src import utils
 from src.operation.auth import AuthMgr
 from src.utils.global_lock import GlobalLock
-from src.operation import worker
+from src.operation.site.generator import parse_user_site_config
+from src.operation.worker import create_task_publish_blog
+from src.operation.guest_fs import read_guest_file, read_guest_image
 from src.framework.error import ErrorWithPrompt
+from src.framework.config import RESERVED_EMAIL
 from src.storage.versioning_adaptor import (
     VersioningAdapter,
     FileOpenRespData,
     DiffItem,
 )
-from src.storage.blog_adapter import BlogAdapter
 from src.storage.user_fs_adapter import UserFSAdapter
 from src.storage.share_adapter import ShareAdapter
-from src.framework.error import Forbidden, NotFound
 from src.utils import render_to_html
 
 
@@ -37,21 +39,25 @@ async def img_preview(
 
     """
     email = f"{email_user}@{email_service}"
+    if email == RESERVED_EMAIL:
+        return read_guest_image("/" + file)
+
     login_email = await AuthMgr.get_user_email_or_none(email, token)
     if login_email != email:
-        raise Forbidden()
+        raise HTTPException(status_code=HTTP_403_FORBIDDEN)
 
     mimetype, content = await UserFSAdapter(email).get_original_image_file(file)
     if content is not None:
         return Response(content, media_type=mimetype)
-    raise NotFound()
+    raise HTTPException(status_code=HTTP_404_NOT_FOUND)
 
 
-@router.post("/notebook/open", dependencies=[Depends(AuthMgr.login_required)])
+@router.post("/notebook/open")
 async def openfile(
         request: Request,
         filepath: str = Body(...),
         version: int | None = Body(None),
+        email: str = Depends(AuthMgr.get_user_email_or_none),
 ):
     """
     前端打开文件的接口
@@ -73,8 +79,10 @@ async def openfile(
                 value: "abcd"
             }, ...]
     """
-
-    fr: FileOpenRespData = await VersioningAdapter(request.state.email).open_file(filepath, version)
+    if email:
+        fr: FileOpenRespData = await VersioningAdapter(email).open_file(filepath, version)
+    else:
+        fr: FileOpenRespData = read_guest_file(path=filepath)
     return {"code": 0, "msg": "ok", "data": fr.dict()}
 
 
@@ -205,16 +213,84 @@ async def share(
     return render_to_html("src/tpl/share.html", context=context)
 
 
-@router.post("/notebook/blog/publish", dependencies=[Depends(AuthMgr.login_required)])
-async def blog_publish(request: Request):
+@router.post("/notebook/static_site", dependencies=[Depends(AuthMgr.login_required)])
+async def gen_static_site(request: Request):
     email = request.state.email
-    version = f"{time.time()}"
+    _ = await parse_user_site_config(email)
+    result = create_task_publish_blog(email=email)
+    return {"code": 0, "msg": "ok", "data": {"result": result}}
 
-    worker.create_task_publish_blog(email=email, version=version)
-    return {"code": 0, "msg": "ok", "data": {"version": version}}
 
+@router.get("/notebook/publish/{email_user}/{email_service}/{file_path:path}")
+async def preview_publish(
+        email_user: str = Path(...),
+        email_service: str = Path(...),
+        file_path: str = Path(...),
+):
+    """
+    用户静态站点预览（完全基于 adapter.storage 接口）
+    """
+    email = f"{email_user}@{email_service}"
+    config = await parse_user_site_config(email)
 
-@router.get("/notebook/blog", dependencies=[Depends(AuthMgr.login_required)])
-async def get_blog_info(request: Request):
-    version = await BlogAdapter(request.state.email).get_version()
-    return {"code": 0, "msg": "ok", "data": {"version": version}}
+    def _normalize_path(raw: str) -> str:
+        """
+        规范化 URL 路径：
+        - URL decode
+        - 禁止路径遍历
+        - 统一为正斜杠
+        """
+        decoded = unquote(raw)
+        if ".." in decoded.split("/"):
+            raise HTTPException(400, "Invalid path")
+        return decoded.lstrip("/")
+
+    adapter = UserFSAdapter(email)
+
+    build_root = f"{adapter.storage_root}/{config.build.source_root.strip('/')}/_build"
+    raw_path = _normalize_path(file_path)
+
+    # 1. 根路径兜底
+    if not raw_path:
+        raw_path = "index.html"
+
+    full_path = f"{build_root}/{raw_path}"
+
+    # 2. 路径存在性 & 安全性检查
+    if not await adapter.storage.exists(full_path):
+        raise HTTPException(status_code=HTTP_404_NOT_FOUND)
+
+    # 3. 目录 → index.html
+    if await adapter.storage.is_dir(full_path):
+        index_path = f"{full_path}/index.html"
+        if await adapter.storage.exists(index_path) and \
+                await adapter.storage.is_file(index_path):
+            full_path = index_path
+        else:
+            raise HTTPException(status_code=HTTP_404_NOT_FOUND)
+
+    # 4. 非文件 → 404
+    if not await adapter.storage.is_file(full_path):
+        raise HTTPException(status_code=HTTP_404_NOT_FOUND)
+
+    # 5. 读取内容
+    try:
+        bin_content = await adapter.storage.read_bytes(full_path)
+    except Exception as e:
+        raise HTTPException(HTTP_500_INTERNAL_SERVER_ERROR, f"Read file failed: {e}")
+
+    # 6. MIME 推断
+    mime_type, _ = mimetypes.guess_type(full_path)
+    if mime_type is None:
+        mime_type = "application/octet-stream"
+
+    # 7. 返回响应（禁用缓存，方便预览）
+    return Response(
+        content=bin_content,
+        media_type=mime_type,
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        },
+    )

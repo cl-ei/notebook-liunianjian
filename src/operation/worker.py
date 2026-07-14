@@ -4,12 +4,11 @@ import time
 import traceback
 from multiprocessing import Process, Queue
 from queue import Empty
-from src.operation.blog import publish_blog
+from src.operation.site.generator import StaticSiteGenerator
 
 
-_global_communication = [
-    Queue(),  # task and control queue
-]
+_global_communication = []  # task and control queue
+
 
 _process = []
 
@@ -35,21 +34,24 @@ def worker_wrapper(index: int, q: Queue):
 
             if act == "publish_blog":
                 email = task["email"]
-                version = task["version"]
-                logging.debug(f"worker {index} received task: {act}, args: {email}, {version}")
+                logging.info(f"worker {index} received task: {act}, args: {email}")
 
-                loop.run_until_complete(publish_blog(email=email, version=version))
+                loop.run_until_complete(StaticSiteGenerator(email).gen())
                 pending_tasks = asyncio.all_tasks(loop)
                 if pending_tasks:
                     loop.run_until_complete(asyncio.gather(*pending_tasks, return_exceptions=True))
-                logging.debug(f"worker {index} blog publish complete, args: {email}, {version}")
+                logging.info(f"worker {index} generate static site complete, args: {email}")
 
         except Exception as e:
             logging.error(f"error happened in worker {index}: {e}\n{traceback.format_exc()}")
 
 
 def start(count: int = 2):
-    q = _global_communication[0]
+    global _global_communication
+
+    q = Queue()
+    _global_communication.append(q)
+
     for i in range(count):
         p = Process(target=worker_wrapper, args=(i, q))
         p.start()
@@ -70,14 +72,16 @@ def stop():
     logging.info("worker stopped.")
 
 
-def create_task_publish_blog(email: str, version: str) -> bool:
+def create_task_publish_blog(email: str) -> bool:
+    global _global_communication
+
+    if not _global_communication:
+        return False
+
     q = _global_communication[0]
     try:
-        q.put_nowait({
-            "act": "publish_blog",
-            "email": email,
-            "version": version,
-        })
+        q.put_nowait({"act": "publish_blog", "email": email})
+        logging.info(f"current queue length: {q.qsize()}")
         return True
 
     except Exception as e:

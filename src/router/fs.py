@@ -1,9 +1,7 @@
 import os.path
-import time
-
-from fastapi import APIRouter, Request, File, Form, UploadFile, Depends, Body
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Request, File, Form, UploadFile, Depends, Body, HTTPException
 from src.operation.auth import AuthMgr
+from src.operation.guest_fs import list_guest_fs
 from src.storage.user_fs_adapter import UserFSAdapter
 from src.framework.error import ErrorWithPrompt
 
@@ -26,10 +24,11 @@ async def upload(
     return {"code": 0, "msg": "ok"}
 
 
-@router.post("/notebook/listdir", dependencies=[Depends(AuthMgr.login_required)])
+@router.post("/notebook/listdir")
 async def listdir(
         request: Request,
         path: str = Body(..., embed=True),
+        email: str = Depends(AuthMgr.get_user_email_or_none),
 ):
     """
     返回路径下的项目：
@@ -44,10 +43,13 @@ async def listdir(
         }, ...]
     """
     if path == "#":
-        files = [{"id": "/", "type": "dir", "text": "/"}]
-    else:
-        data = await UserFSAdapter(request.state.email).ls(path)
-        files = [f.dict() for f in data]
+        return {"code": 0, "msg": "ok", "data": [{"id": "/", "type": "dir", "text": "/"}]}
+
+    if not email:
+        return {"code": 0, "msg": "ok", "data": list_guest_fs(path)}
+
+    data = await UserFSAdapter(email).ls(path)
+    files = [f.dict() for f in data]
     return {
         "code": 0,
         "msg": "ok",
