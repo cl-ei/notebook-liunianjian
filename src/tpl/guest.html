@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="zh-CN" x-data="guestApp()" x-cloak>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>笔记本 - 游客预览</title>
+
+    <!-- 完全复用 home.html 的自托资源，保证风格100%一致 -->
+    <link rel="stylesheet" href="/notebook/static/font-awesome-6-4-0/css/all.min.css">
+    <link rel="stylesheet" href="/notebook/static/css/fonts-jetbrains-mono.css">
+    <script src="/notebook/static/js/marked-18.0.5.js"></script>
+    <script src="/notebook/static/js/diff_match_patch.js"></script>
+    <script src="/notebook/static/js/spark-md5.min.js"></script>
+    <script src="/notebook/static/js/purify-3.1.6.min.js"></script>
+    <script src="/notebook/static/js/tailwindcss-3.4.17.js"></script>
+    <script defer src="/notebook/static/js/alpinejs-3.x.x-cdn.min.js"></script>
+
+    <style>
+        /* 完全复用 home.html 的基础样式 */
+        [x-cloak] { display: none !important; }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background-color: #f8f9fa;
+            overflow: hidden;
+            height: 100vh;
+            color: #212529;
+        }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #ced4da; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #adb5bd; }
+        * { scrollbar-width: thin; scrollbar-color: #ced4da transparent; }
+
+        textarea.editor {
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 14px;
+            line-height: 1.7;
+            tab-size: 4;
+        }
+        .loading-spinner {
+            width: 14px; height: 14px;
+            border: 2px solid #e9ecef;
+            border-top-color: #4dabf7;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* 游客专属：只读编辑框样式 */
+        textarea.editor-readonly {
+            background-color: #f8f9fa;
+            color: #868e96;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+
+<!-- ============================
+     [NAV] 顶部导航栏（完全对齐 home.html）
+     ============================ -->
+<nav class="h-14 bg-white border-b border-gray-200 flex items-center justify-center px-4 flex-shrink-0 shadow-sm relative z-30">
+    <!-- 左侧：主页按钮 + 游客标识 -->
+    <div class="absolute left-4 flex items-center space-x-1">
+        <a href="/notebook/guest" class="flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-all duration-150" title="返回主页">
+            <i class="fas fa-home text-sm"></i>
+            <span class="text-sm font-medium hidden sm:inline">主页</span>
+        </a>
+        <div class="h-6 w-px bg-gray-200 mx-1"></div>
+        <!-- 游客标识 -->
+        <span class="px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-bold rounded-full uppercase tracking-wider">游客模式</span>
+    </div>
+
+    <!-- 中间标题 -->
+    <div class="flex items-center justify-center">
+        <span class="font-bold text-gray-800 text-sm tracking-wide">笔记本</span>
+    </div>
+
+    <!-- 右侧：登录/注册按钮 -->
+    <div class="absolute right-4 flex items-center space-x-2">
+        <button @click="showLoginModal = true" class="flex items-center space-x-1.5 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium rounded-lg transition-colors shadow-sm">
+            <i class="fas fa-sign-in-alt"></i>
+            <span>登录/注册</span>
+        </button>
+    </div>
+</nav>
+
+<!-- ============================
+     [LAYOUT] 主内容区（完全对齐 home.html）
+     ============================ -->
+<div class="flex" style="height: calc(100vh - 3.5rem);">
+    <!-- 左侧目录树（写死数据，只读） -->
+    <aside
+            x-show="!sidebarCollapsed"
+            x-transition:enter="transition ease-out duration-300"
+            x-transition:enter-start="-translate-x-full opacity-0"
+            x-transition:enter-end="translate-x-0 opacity-100"
+            x-transition:leave="transition ease-in duration-200"
+            x-transition:leave-start="translate-x-0 opacity-100"
+            x-transition:leave-end="-translate-x-full opacity-0"
+            class="w-64 bg-white border-r border-gray-200 flex-shrink-0 overflow-hidden flex flex-col absolute md:relative z-20 h-full"
+    >
+        <div class="h-11 p-3 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+            <h3 class="text-[11px] font-bold text-gray-400 uppercase tracking-wider">游客文件夹</h3>
+        </div>
+        <div
+                class="overflow-auto flex-1 p-2"
+                @click="onTreeClick"
+                @contextmenu.prevent="onTreeRightClick"
+                x-html="treeHtml"
+        ></div>
+    </aside>
+
+    <!-- 侧边栏折叠按钮 -->
+    <button
+            @click="sidebarCollapsed = !sidebarCollapsed"
+            class="absolute left-0 top-1/2 -translate-y-1/2 z-30 transition-all duration-300"
+            :class="sidebarCollapsed ? 'ml-0' : 'ml-64'"
+    >
+        <div class="bg-white border border-gray-200 rounded-r-lg p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-all shadow-sm">
+            <i :class="sidebarCollapsed ? 'fas fa-chevron-right' : 'fas fa-chevron-left'" class="text-xs"></i>
+        </div>
+    </button>
+
+    <!-- 右侧主工作区 -->
+    <main class="flex-1 overflow-hidden bg-gray-50">
+        <!-- 单页视图 -->
+        <div x-show="viewMode === 'single'" class="h-full flex flex-col">
+            <div class="h-11 bg-white border-b border-gray-200 flex items-center px-4 shadow-sm">
+                <i class="fas fa-file-alt text-gray-400 text-xs flex-shrink-0"></i>
+                <span class="text-xs text-gray-500 font-medium truncate ml-2 leading-none" x-text="formatPath(currentFile?.id || '')"></span>
+                <button x-show="currentFile" @click="copyPath()" class="flex-shrink-0 p-1 ml-2 rounded text-gray-400 hover:text-blue-500 hover:bg-blue-50 transition-colors" title="复制路径">
+                    <i class="fas fa-copy text-xs"></i>
+                </button>
+                <span class="text-[10px] text-amber-500 ml-auto">只读模式</span>
+            </div>
+            <div class="flex-1 overflow-auto bg-white">
+                <textarea
+                        x-ref="editorSingle"
+                        x-model="editorContent"
+                        readonly
+                        class="editor editor-readonly w-full h-full p-6 resize-none focus:outline-none placeholder-gray-300"
+                        placeholder="登录后可使用编辑功能..."
+                        spellcheck="false"
+                ></textarea>
+            </div>
+        </div>
+
+        <!-- 双页视图 -->
+        <div x-show="viewMode === 'split'" class="h-full flex">
+            <!-- 左侧编辑区（只读） -->
+            <div class="flex-1 border-r border-gray-200 flex flex-col bg-white">
+                <div class="h-11 bg-gray-50 border-b border-gray-200 flex items-center px-4">
+                    <i class="fas fa-code text-gray-400 text-xs flex-shrink-0"></i>
+                    <span class="text-xs text-gray-500 font-medium truncate ml-2 leading-none" x-text="formatPath(currentFile?.id || '')"></span>
+                    <button x-show="currentFile" @click="copyPath()" class="flex-shrink-0 p-1 ml-2 rounded text-gray-400 hover:text-blue-500 hover:bg-blue-50 transition-colors" title="复制路径">
+                        <i class="fas fa-copy text-xs"></i>
+                    </button>
+                    <span class="text-[10px] text-gray-300 flex-shrink-0 ml-auto">Edit</span>
+                    <span class="text-[10px] text-amber-500 ml-1">只读</span>
+                </div>
+                <div class="flex-1 overflow-hidden">
+                    <textarea
+                            x-ref="editorSplit"
+                            x-model="editorContent"
+                            readonly
+                            class="editor editor-readonly w-full h-full bg-white text-gray-800 p-6 resize-none focus:outline-none placeholder-gray-300"
+                            placeholder="登录后可使用编辑功能..."
+                            spellcheck="false"
+                    ></textarea>
+                </div>
+            </div>
+            <!-- 右侧预览区（和home完全一致） -->
+            <div class="flex-1 flex flex-col bg-white">
+                <div class="h-11 bg-gray-50 border-b border-gray-200 flex items-center px-4">
+                    <i class="fas fa-eye text-gray-400 mr-2 text-xs"></i>
+                    <span class="text-xs text-gray-500 font-medium">实时预览</span>
+                    <div class="flex-1"></div>
+                    <span class="text-[10px] text-gray-300">Live Preview</span>
+                </div>
+                <div class="flex-1 overflow-hidden">
+                    <iframe x-ref="previewFrame"
+                            src="/notebook/static/render.html"
+                            @load="onPreviewFrameLoad"
+                            class="w-full h-full border-none"
+                            sandbox="allow-scripts allow-same-origin">
+                    </iframe>
+                </div>
+            </div>
+        </div>
+
+        <!-- 视图切换按钮（完全对齐home） -->
+        <div class="absolute right-4 bottom-4 z-30 flex items-center bg-gray-100 rounded-lg p-0.5 shadow-sm">
+            <button @click="viewMode = 'single'" :class="viewMode === 'single' ? 'bg-white text-blue-500 shadow-sm' : 'text-gray-400 hover:text-gray-600'" class="px-2.5 py-1.5 rounded-md text-xs transition-all duration-150" title="单页视图">
+                <i class="fas fa-window-maximize"></i>
+            </button>
+            <button @click="viewMode = 'split'" :class="viewMode === 'split' ? 'bg-white text-blue-500 shadow-sm' : 'text-gray-400 hover:text-gray-600'" class="px-2.5 py-1.5 rounded-md text-xs transition-all duration-150" title="双页视图">
+                <i class="fas fa-columns"></i>
+            </button>
+        </div>
+    </main>
+</div>
+
+<!-- ============================
+     [TOAST] 堆叠通知（完全对齐home）
+     ============================ -->
+<template x-teleport="body">
+    <div class="fixed top-5 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 pointer-events-none items-center">
+        <template x-for="toast in toasts" :key="toast.id">
+            <div
+                    x-show="toast.show"
+                    x-transition:enter="transition ease-out duration-300"
+                    x-transition:enter-start="opacity-0 translate-y-2"
+                    x-transition:enter-end="opacity-100 translate-y-0"
+                    x-transition:leave="transition ease-in duration-300"
+                    x-transition:leave-start="opacity-100 translate-y-0"
+                    x-transition:leave-end="opacity-0 translate-y-2"
+                    @click="toast.show = false"
+                    class="pointer-events-auto max-w-sm w-full rounded-xl p-4 shadow-lg cursor-pointer text-white"
+                    :class="{
+                    'bg-emerald-500': toast.type === 'success',
+                    'bg-red-500': toast.type === 'error',
+                    'bg-blue-500': toast.type === 'info'
+                }"
+            >
+                <div class="flex items-center">
+                    <i :class="{
+                        'fas fa-check-circle': toast.type === 'success',
+                        'fas fa-exclamation-circle': toast.type === 'error',
+                        'fas fa-info-circle': toast.type === 'info'
+                    }" class="text-lg mr-3 flex-shrink-0"></i>
+                    <p class="text-sm font-medium" x-text="toast.message"></p>
+                </div>
+            </div>
+        </template>
+    </div>
+</template>
+
+<!-- ============================
+     [LOGIN] 登录/注册弹窗（复用原逻辑，胶囊切换）
+     ============================ -->
+<template x-teleport="body">
+    <div x-show="showLoginModal" x-cloak class="fixed inset-0 z-[60] overflow-y-auto">
+        <div x-show="showLoginModal" x-transition class="fixed inset-0 bg-black/40 backdrop-blur-sm" @click="closeLoginModal()"></div>
+        <div class="flex min-h-full items-center justify-center p-4">
+            <div x-show="showLoginModal" x-transition class="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 sm:p-8" @click.stop>
+                <!-- 关闭按钮 -->
+                <button @click="closeLoginModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+
+                <!-- 标题 -->
+                <div class="text-center mb-8">
+                    <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-400 to-cyan-400 flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-book text-white text-2xl"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold text-gray-800" x-text="loginMode === 'login' ? '登录账户' : '创建账户'"></h2>
+                    <p class="text-gray-500 mt-2" x-text="loginMode === 'login' ? '欢迎回来！' : '开始您的笔记之旅'"></p>
+                </div>
+
+                <!-- 表单 -->
+                <form @submit.prevent="submitAuth()" class="space-y-5">
+                    <!-- 邮箱 -->
+                    <div>
+                        <label for="email" class="block text-sm font-medium text-gray-700 mb-1">邮箱地址</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <i class="fas fa-envelope text-gray-400"></i>
+                            </div>
+                            <input
+                                    id="email"
+                                    type="email"
+                                    x-model="loginForm.email"
+                                    required
+                                    class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
+                                    placeholder="you@example.com"
+                            >
+                        </div>
+                    </div>
+
+                    <!-- 密码 -->
+                    <div>
+                        <label for="password" class="block text-sm font-medium text-gray-700 mb-1">密码</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <i class="fas fa-lock text-gray-400"></i>
+                            </div>
+                            <input
+                                    id="password"
+                                    :type="showPassword ? 'text' : 'password'"
+                                    x-model="loginForm.password"
+                                    required
+                                    minlength="5"
+                                    maxlength="32"
+                                    class="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
+                                    placeholder="••••••••"
+                            >
+                            <button
+                                    type="button"
+                                    @click="showPassword = !showPassword"
+                                    class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                            >
+                                <i :class="showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+                            </button>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1" x-show="loginMode === 'register'">
+                            密码长度需在5-32个字符之间
+                        </p>
+                    </div>
+
+                    <!-- 提交按钮 -->
+                    <button
+                            type="submit"
+                            :disabled="authLoading || !loginForm.email || loginForm.password.length < 5"
+                            class="w-full py-3 px-4 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 disabled:cursor-not-allowed text-white font-medium rounded-lg shadow-sm hover:shadow transition-all duration-150 flex items-center justify-center"
+                    >
+                        <span x-show="!authLoading" x-text="loginMode === 'login' ? '登录' : '注册'"></span>
+                        <span x-show="authLoading" class="flex items-center">
+                            <i class="fas fa-spinner fa-spin mr-2"></i>
+                            处理中...
+                        </span>
+                    </button>
+                </form>
+
+                <!-- 胶囊切换器 -->
+                <div class="mt-8 flex justify-center">
+                    <div class="relative bg-gray-100 rounded-full p-1 flex items-center w-64 h-11">
+                        <div
+                                class="absolute top-1 bottom-1 w-1/2 bg-white rounded-full shadow-sm transition-transform duration-300 ease-out"
+                                :class="loginMode === 'login' ? 'left-1' : 'left-1/2'"
+                        ></div>
+                        <button
+                                @click="toggleLoginMode()"
+                                type="button"
+                                class="relative z-10 flex-1 h-full flex items-center justify-center text-sm font-medium transition-colors duration-300"
+                                :class="loginMode === 'login' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'"
+                        >
+                            <i class="fas fa-sign-in-alt mr-1.5 text-xs"></i>
+                            登录
+                        </button>
+                        <button
+                                @click="toggleLoginMode()"
+                                type="button"
+                                class="relative z-10 flex-1 h-full flex items-center justify-center text-sm font-medium transition-colors duration-300"
+                                :class="loginMode === 'register' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'"
+                        >
+                            <i class="fas fa-user-plus mr-1.5 text-xs"></i>
+                            注册
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 私有部署说明 -->
+                <div class="mt-6 p-4 bg-gradient-to-br from-slate-50 to-blue-50 rounded-xl border border-slate-200">
+                    <div class="flex items-start space-x-3">
+                        <div class="flex-shrink-0">
+                            <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-400 to-cyan-400 flex items-center justify-center">
+                                <i class="fas fa-lock text-white text-sm"></i>
+                            </div>
+                        </div>
+                        <div class="flex-1">
+                            <h4 class="text-sm font-bold text-slate-800">私有部署版本</h4>
+                            <p class="text-xs text-slate-500 mt-1 leading-relaxed">
+                                此站点为私有部署，仅限授权用户访问。<br>
+                                想要拥有自己的笔记服务？
+                            </p>
+                            <a href="https://github.com/cl-ei/notebook.madliar"
+                               target="_blank"
+                               class="inline-flex items-center text-xs font-medium text-blue-600 hover:text-blue-800 mt-2 transition-colors group">
+                                <i class="fab fa-github mr-1.5"></i>
+                                获取开源版本
+                                <i class="fas fa-arrow-right ml-1 text-[10px] opacity-0 group-hover:opacity-100 transform group-hover:translate-x-0.5 transition-all"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</template>
+
+<!-- ============================
+     [CONTEXT-MENU] 右键菜单（所有操作拦截为“未登录”）
+     ============================ -->
+<template x-teleport="body">
+    <div
+            x-show="contextMenu.show"
+            x-cloak
+            @click.away="closeContextMenu()"
+            @contextmenu.prevent="closeContextMenu()"
+            x-transition:enter="transition ease-out duration-100"
+            x-transition:enter-start="opacity-0 scale-95"
+            x-transition:enter-end="opacity-100 scale-100"
+            x-transition:leave="transition ease-in duration-75"
+            x-transition:leave-start="opacity-100 scale-100"
+            x-transition:leave-end="opacity-0 scale-95"
+            class="fixed z-[70] min-w-[180px] bg-white rounded-xl shadow-2xl border border-gray-100 py-1 overflow-hidden"
+            :style="`left: ${contextMenu.x}px; top: ${contextMenu.y}px;`"
+    >
+        <div x-show="contextMenu.targetNode" class="px-3 py-2 border-b border-gray-50 bg-gray-50/50">
+            <p class="text-xs text-gray-400 truncate" x-text="contextMenu.targetNode?.name || ''"></p>
+        </div>
+        <template x-for="(item, index) in contextMenu.items" :key="index">
+            <div>
+                <div x-show="item.divider" class="my-1 border-t border-gray-100"></div>
+                <button
+                        x-show="!item.divider"
+                        @click="handleGuestAction(item.action)"
+                        class="w-full text-left px-3 py-2 text-sm flex items-center space-x-2 transition-colors text-gray-700 hover:bg-blue-50 hover:text-blue-600"
+                >
+                    <span x-text="item.label"></span>
+                </button>
+            </div>
+        </template>
+    </div>
+</template>
+
+<!-- ============================
+     [SCRIPT] 应用逻辑
+     ============================ -->
+<script>
+    // 工具函数复用 home.html 的实现
+    function escapeHtml(text) {
+        const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+        return text.replace(/[&<>"']/g, m => map[m]);
+    }
+    function isMarkdownType(fileName) {
+        if (!fileName) return false;
+        return /\.(md|markdown)$/i.test(fileName);
+    }
+    function isImageType(fileName) {
+        if (!fileName) return false;
+        return /\.(png|jpg|jpeg|gif|svg|webp)$/i.test(fileName);
+    }
+
+    // 写死的文件内容
+    const GUEST_CONTENTS = {
+        '/guest-root/README.md': `# 🎉 欢迎来到笔记本
+
+你当前正在以 **游客身份** 浏览，所有编辑功能已禁用。
+
+## 📖 关于本项目
+- 基于 Alpine.js + Tailwind CSS 构建的轻量级笔记本
+- 支持 Markdown 实时预览、目录树管理、版本历史
+- 完全私有部署，数据自主可控
+
+## 🚀 快速开始
+点击右上角 **登录/注册** 按钮，创建账户后即可：
+- 📝 创建和编辑自己的笔记
+- 📁 管理个人文件夹和目录结构
+- 🔄 实时 Markdown 预览
+- ☁️ 云端同步所有笔记
+- 🔍 全文搜索功能
+
+## ✨ Markdown 示例
+\`\`\`javascript
+// 登录后可使用代码块编辑
+const welcome = () => {
+    console.log("欢迎回来！");
+};
+\`\`\`
+
+> 💡 提示：登录后你的所有笔记将安全保存在云端，随时随地访问。
+`,
+        '/guest-root/使用说明.md': `# 📋 使用说明
+
+## 🖊️ 编辑器功能
+- **单页视图**：适合浏览图片、PDF 等大文件
+- **双页视图**：左侧编辑 Markdown，右侧实时预览
+- **快捷键**：
+  - \`Ctrl+K\`：全局搜索
+  - \`Ctrl+S\`：保存当前文件
+  - \`Esc\`：关闭弹窗
+
+## 📁 目录管理
+- 支持无限层级的目录结构
+- 右键菜单支持新建/重命名/删除操作
+- 拖拽排序（登录后可用）
+
+## ⚙️ 个性化设置
+- 深色/浅色主题切换
+- 自定义字体大小
+- 快捷键自定义
+
+## 🔒 权限说明
+当前为游客模式，仅可浏览公开内容，无法进行任何写操作。所有编辑功能需登录后使用。
+`,
+        '/guest-root/流年笺设计草稿.md': `# 流年笺设计草稿
+
+## 核心架构决策
+采用 iframe 作为预览渲染沙箱，彻底隔离父页面样式与预览内容样式，避免 Tailwind 等框架的样式污染。
+
+### iframe 的优势
+1. **样式绝对隔离**：预览内容不受父页面 CSS 影响
+2. **安全沙箱**：即使存在 XSS 漏洞，也仅在 iframe 内生效
+3. **渲染性能隔离**：重型渲染库（KaTeX、Mermaid）不会影响父页面编辑流畅度
+
+### 待解决问题
+1. **滚动同步**：双页模式下需实现编辑区与预览区滚动联动
+2. **链接跳转**：iframe 内链接点击需通知父页面处理，避免仅在小窗内跳转
+3. **高度自适应**：嵌入博客时需实现 iframe 高度随内容自适应，避免嵌套滚动条
+
+## 下一步计划
+- 实现滚动同步算法
+- 优化图片懒加载逻辑
+- 添加目录树（TOC）自动生成功能
+`
+    };
+
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('guestApp', () => ({
+            // ===== 基础状态 =====
+            viewMode: 'split',
+            sidebarCollapsed: false,
+            showLoginModal: false,
+            loginMode: 'login', // 'login' | 'register'
+            authLoading: false,
+            showPassword: false,
+            loginForm: { email: '', password: '' },
+
+            // ===== 目录树（写死数据）=====
+            rootNode: {
+                id: '/guest-root',
+                type: 'dir',
+                text: '游客的文件夹',
+                expanded: true,
+                loaded: true,
+                children: [
+                    {
+                        id: '/guest-root/img',
+                        type: 'dir',
+                        text: 'img',
+                        expanded: false,
+                        loaded: false,
+                        children: []
+                    },
+                    {
+                        id: '/guest-root/README.md',
+                        type: 'file',
+                        text: 'README.md'
+                    },
+                    {
+                        id: '/guest-root/使用说明.md',
+                        type: 'file',
+                        text: '使用说明.md'
+                    },
+                    {
+                        id: '/guest-root/流年笺设计草稿.md',
+                        type: 'file',
+                        text: '流年笺设计草稿.md'
+                    }
+                ]
+            },
+            currentFile: null,
+            selectedNodeId: null,
+            focusedNodeId: null,
+            editorContent: '',
+            previewReady: false,
+            syncTimer: null,
+
+            // ===== Toast 状态 =====
+            toasts: [],
+            toastIdCounter: 0,
+
+            // ===== 右键菜单 =====
+            contextMenu: { show: false, x: 0, y: 0, targetNode: null, items: [] },
+
+            // ===== 初始化 =====
+            init() {
+                // 默认选中 README.md
+                this.currentFile = this.rootNode.children[1];
+                this.editorContent = GUEST_CONTENTS[this.currentFile.id];
+                this.selectedNodeId = this.currentFile.id;
+
+                // 监听 iframe 加载完成
+                window.addEventListener('message', (event) => {
+                    if (event.data?.type === 'IFRAME_READY') {
+                        this.previewReady = true;
+                        this.syncToPreview();
+                    }
+                });
+            },
+
+            // ===== 目录树相关 =====
+            get treeHtml() {
+                const renderNode = (node, depth = 0) => {
+                    const isDir = node.type === 'dir';
+                    const indent = depth * 14 + 10;
+                    const isSelected = this.selectedNodeId === node.id;
+                    const iconClass = isDir
+                        ? (node.expanded ? 'fas fa-folder-open text-amber-400' : 'fas fa-folder text-amber-500')
+                        : (isMarkdownType(node.text) ? 'fas fa-file-alt text-blue-400' : 'fas fa-file-image text-pink-400');
+
+                    let html = `
+                    <div class="group flex items-center px-1 py-1 cursor-pointer rounded-md transition-colors
+                        ${isSelected ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700 hover:bg-gray-100'}"
+                        style="padding-left: ${indent}px; padding-right: 12px; width: max-content; min-width: 100%;"
+                        data-node-id="${node.id}" data-node-type="${node.type}">
+                        ${isDir ? `<i class="fas fa-chevron-right text-[10px] text-gray-300 transition-transform duration-200 mr-1.5 w-3 flex-shrink-0 ${node.expanded ? 'rotate-90' : ''}"></i>` : '<div class="w-3 mr-1.5 flex-shrink-0"></div>'}
+                        <i class="${iconClass} mr-2 text-sm w-4 text-center flex-shrink-0"></i>
+                        <span class="truncate flex-1 text-sm">${escapeHtml(node.text)}</span>
+                    </div>`;
+
+                    if (isDir && node.expanded) {
+                        html += `<div class="node-children">${node.children.map(child => renderNode(child, depth + 1)).join('')}</div>`;
+                    }
+                    return html;
+                };
+                return this.rootNode.children.map(child => renderNode(child, 0)).join('');
+            },
+
+            async loadChildren(node) {
+                // 仅模拟加载 img 文件夹的子节点，不发真实请求
+                if (node.id === '/guest-root/img' && !node.loaded) {
+                    node.children = [
+                        { id: '/guest-root/img/示例1.png', type: 'file', text: '示例1.png' },
+                        { id: '/guest-root/img/示例2.jpg', type: 'file', text: '示例2.jpg' },
+                        { id: '/guest-root/img/风景.webp', type: 'file', text: '风景.webp' }
+                    ];
+                    node.loaded = true;
+                    node.expanded = true;
+                }
+            },
+
+            async toggleNode(node) {
+                if (node.type !== 'dir') return;
+                if (!node.expanded) {
+                    await this.loadChildren(node);
+                    node.expanded = true;
+                } else {
+                    node.expanded = false;
+                }
+            },
+
+            onTreeClick(event) {
+                const target = event.target.closest('[data-node-id]');
+                if (!target) return;
+                const id = target.dataset.nodeId;
+                const type = target.dataset.nodeType;
+                const node = this.findNode(id);
+                if (!node) return;
+
+                // 处理展开/折叠
+                if (event.target.closest('[data-action="toggle"]') || (type === 'dir' && !event.target.closest('[data-node-id]'))) {
+                    this.toggleNode(node);
+                    return;
+                }
+
+                // 选中文件
+                if (type === 'file') {
+                    this.currentFile = node;
+                    this.selectedNodeId = id;
+                    this.focusedNodeId = id;
+                    this.editorContent = GUEST_CONTENTS[id] || (isImageType(node.text) ? '![登录后查看原图](' + id + ')' : '# 内容不存在');
+                    this.syncToPreview();
+                }
+            },
+
+            findNode(id, nodes = this.rootNode.children) {
+                for (const node of nodes) {
+                    if (node.id === id) return node;
+                    if (node.children?.length) {
+                        const found = this.findNode(id, node.children);
+                        if (found) return found;
+                    }
+                }
+                return null;
+            },
+
+            // ===== 预览相关 =====
+            onPreviewFrameLoad() {
+                this.previewReady = true;
+                if (this.currentFile) this.syncToPreview();
+            },
+
+            syncToPreview() {
+                if (this.syncTimer) clearTimeout(this.syncTimer);
+                this.syncTimer = setTimeout(() => {
+                    if (!this.previewReady || !this.$refs.previewFrame?.contentWindow || !this.currentFile) return;
+
+                    let contentToSend = this.editorContent;
+                    // 图片文件特殊处理
+                    if (isImageType(this.currentFile.name)) {
+                        contentToSend = `<div class="image-preview">
+                            <img src="/notebook/static/images/guest-placeholder.png" alt="${this.currentFile.name}" title="登录后查看原图" style="max-width: 100%; opacity: 0.7;">
+                            <div class="image-error" style="display:block; text-align:center; padding:12px; color:#868e96;">
+                                <i class="fas fa-lock mr-2"></i>登录后查看原图
+                            </div>
+                        </div>`;
+                    }
+
+                    this.$refs.previewFrame.contentWindow.postMessage({
+                        type: 'SYNC_CONTENT',
+                        html: contentToSend,
+                        path: this.currentFile.id,
+                        username: 'guest',
+                        domain: 'example.com'
+                    }, '*');
+                }, 300);
+            },
+
+            // ===== 登录/注册相关 =====
+            toggleLoginMode() {
+                this.loginMode = this.loginMode === 'login' ? 'register' : 'login';
+                this.loginForm.password = '';
+            },
+
+            closeLoginModal() {
+                this.showLoginModal = false;
+                this.loginForm = { email: '', password: '' };
+                this.authLoading = false;
+            },
+
+            async submitAuth() {
+                if (this.authLoading) return;
+                this.authLoading = true;
+
+                try {
+                    const url = this.loginMode === 'login' ? '/notebook/login' : '/notebook/register';
+                    const res = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(this.loginForm),
+                        credentials: 'include'
+                    });
+                    const data = await res.json();
+
+                    if (data.code === 0) {
+                        localStorage.setItem('notebook_user_email', data.data.email);
+                        this.showToast(this.loginMode === 'login' ? '登录成功！正在跳转...' : '注册成功！正在跳转...', 'success');
+                        setTimeout(() => {
+                            window.location.href = '/notebook'; // 跳转到主编辑页
+                        }, 1200);
+                    } else {
+                        this.showToast(data.msg || '操作失败', 'error');
+                        this.authLoading = false;
+                    }
+                } catch (e) {
+                    this.showToast('网络错误，请检查连接', 'error');
+                    this.authLoading = false;
+                }
+            },
+
+            // ===== 游客操作拦截 =====
+            handleGuestAction(action) {
+                this.showToast('未登录，无法执行此操作', 'info');
+                this.closeContextMenu();
+            },
+
+            copyPath() {
+                this.showToast('未登录，无法复制路径', 'info');
+            },
+
+            // ===== 工具函数 =====
+            formatPath(path, maxLen = 45) {
+                if (!path) return '';
+                const name = path.split('/').pop();
+                return name.length > maxLen ? name.substring(0, maxLen) + '...' : name;
+            },
+
+            showToast(message, type = 'info') {
+                const id = ++this.toastIdCounter;
+                this.toasts.push({ id, message, type, show: true });
+                setTimeout(() => {
+                    const toast = this.toasts.find(t => t.id === id);
+                    if (toast) toast.show = false;
+                }, 2500);
+            },
+
+            closeContextMenu() {
+                this.contextMenu.show = false;
+            },
+
+            onTreeRightClick(event) {
+                const target = event.target.closest('[data-node-id]');
+                if (!target) return;
+                const id = target.dataset.nodeId;
+                const type = target.dataset.nodeType;
+                const nodeData = this.findNode(id);
+                if (!nodeData) return;
+
+                this.focusedNodeId = id;
+                this.contextMenu = {
+                    show: true,
+                    x: event.clientX,
+                    y: event.clientY,
+                    targetNode: nodeData,
+                    items: type === 'dir'
+                        ? [
+                            { label: '📂 新建目录', action: 'mkdir' },
+                            { label: '📄 新建文件', action: 'newfile' },
+                            { label: '⬆️ 上传文件', action: 'upload' },
+                            { divider: true },
+                            { label: '✏️ 重命名', action: 'rename' },
+                            { label: '🗑️ 删除', action: 'delete', danger: true }
+                        ]
+                        : [
+                            { label: '✏️ 重命名', action: 'rename' },
+                            { label: '🗑️ 删除', action: 'delete', danger: true }
+                        ]
+                };
+            }
+        }));
+    });
+</script>
+</body>
+</html>

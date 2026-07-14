@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>预览</title>
+    <link rel="stylesheet" href="/notebook/static/css/highlight.min.css">
+    <link rel="stylesheet" href="/notebook/static/fonts/fonts.css">
+    <link rel="stylesheet" href="/notebook/static/css/render.css">
+</head>
+<body>
+<div id="content">
+    <div class="loading">等待内容加载...</div>
+</div>
+<script src="/notebook/static/js/highlight.min.js"></script>
+<script>
+    // 缓存加载失败的图片URL，避免重复发起404请求
+    const failedImgCache = new Set();
+
+    /**
+     * 路径截断函数
+     */
+    function truncatePath(path, maxLength = 50) {
+        if (path.length <= maxLength) return path;
+        const start = path.substring(0, Math.floor(maxLength / 2) - 2);
+        const end = path.substring(path.length - Math.floor(maxLength / 2) + 1);
+        return start + '...' + end;
+    }
+
+    /**
+     * 应用图片失败状态（核心：确保只创建一个错误提示）
+     * @param {HTMLImageElement} img - 图片元素
+     * @param {string} src - 原始图片URL
+     * @param {string} alt - 原始alt文本
+     */
+    function applyFailedState(img, src, alt) {
+        // 防止重复处理
+        if (img.dataset.failed === 'true') return;
+
+        img.dataset.failed = 'true';
+        img.removeAttribute('src');
+
+        // 应用失败样式
+        img.style.opacity = '0.5';
+        img.style.borderColor = '#dc3545';
+        img.style.background = '#f8f9fa';
+        img.alt = `图片加载失败: ${truncatePath(alt || src || '未知图片')}`;
+    }
+
+    /**
+     * 渲染HTML内容（完全抛弃正则预处理，全部DOM层面处理）
+     * @param {string} html - 已解析的HTML字符串
+     */
+    function renderHtml(html) {
+        const contentDiv = document.getElementById('content');
+        contentDiv.innerHTML = html;
+
+        // 高亮代码块
+        contentDiv.querySelectorAll('pre code').forEach(block => {
+            hljs.highlightElement(block);
+        });
+
+        // 处理所有图片 - 核心修复在这里
+        contentDiv.querySelectorAll('img').forEach(img => {
+            const originalSrc = img.getAttribute('src') || '';
+            const originalAlt = img.getAttribute('alt') || '';
+
+            // 关键：移除内联的onerror，防止双重触发
+            const inlineOnError = img.getAttribute('onerror');
+            if (inlineOnError) {
+                img.removeAttribute('onerror');
+            }
+
+            // 如果已经在缓存中，直接应用失败状态
+            if (failedImgCache.has(originalSrc)) {
+                applyFailedState(img, originalSrc, originalAlt);
+                return;
+            }
+
+            // 替换/劫持错误处理
+            img.addEventListener('error', () => {
+                failedImgCache.add(originalSrc);
+                applyFailedState(img, originalSrc, originalAlt);
+            }, { once: true });
+        });
+    }
+    // 监听父页面消息
+    window.addEventListener('message', function(event) {
+        if (event.data && event.data.type === 'SYNC_CONTENT') {
+            const html = event.data.html || '';
+            renderHtml(html);
+        }
+    });
+
+    // 点击通知父页面关闭弹窗
+    document.addEventListener('click', () => {
+        window.parent.postMessage({ type: 'IFRAME_CLICK' }, '*');
+    });
+
+    // 通知父页面就绪
+    window.parent.postMessage({ type: 'IFRAME_READY' }, '*');
+</script>
+</body>
+</html>

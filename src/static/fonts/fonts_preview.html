@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notebook 字体预览</title>
+    <link rel="stylesheet" href="fonts.css">
+    <style>
+        :root {
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --text-secondary: #64748b;
+            --border: #e2e8f0;
+            --accent: #3b82f6;
+            --radius: 0.5rem;
+        }
+        /* 深色模式变量 */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #0f172a;
+                --card-bg: #1e293b;
+                --text: #f1f5f9;
+                --text-secondary: #94a3b8;
+                --border: #334155;
+            }
+        }
+        /* 手动切换深色模式 */
+        #dark-mode-toggle:checked ~ :root {
+            --bg: #0f172a;
+            --card-bg: #1e293b;
+            --text: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --border: #334155;
+        }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            padding: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+            transition: background 0.2s, color 0.2s;
+        }
+        /* 隐藏默认的checkbox，用label当切换按钮 */
+        #dark-mode-toggle {
+            display: none;
+        }
+        .dark-toggle {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            padding: 0.5rem 1rem;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            cursor: pointer;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            transition: all 0.2s;
+            z-index: 100;
+        }
+        .dark-toggle:hover {
+            color: var(--text);
+            border-color: var(--accent);
+        }
+        header {
+            margin-bottom: 2.5rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+        h1 {
+            font-family: 'Inter Display', sans-serif;
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            margin-bottom: 1rem;
+        }
+        .warning {
+            background: #fef3c7;
+            color: #92400e;
+            padding: 0.75rem 1rem;
+            border-radius: var(--radius);
+            font-size: 0.875rem;
+            border-left: 4px solid #f59e0b;
+        }
+        @media (prefers-color-scheme: dark) {
+            .warning {
+                background: #451a03;
+                color: #fbbf24;
+                border-left-color: #f59e0b;
+            }
+        }
+        .section {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            transition: all 0.2s;
+        }
+        .section-title {
+            font-family: 'Inter Display', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px dashed var(--border);
+        }
+        .section-desc {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            margin-bottom: 1.5rem;
+        }
+        .sample-group {
+            margin-bottom: 1.5rem;
+        }
+        .sample-label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .weight-tag {
+            background: var(--bg);
+            padding: 0.125rem 0.5rem;
+            border-radius: 999px;
+            font-size: 0.7rem;
+        }
+        .sample-text {
+            padding: 0.75rem 1rem;
+            border-radius: calc(var(--radius) - 0.25rem);
+            background: var(--bg);
+            line-height: 1.7;
+        }
+        /* Inter 常规字体样式 */
+        .inter-100 { font-family: 'Inter', sans-serif; font-weight: 100; font-style: normal; }
+        .inter-100i { font-family: 'Inter', sans-serif; font-weight: 100; font-style: italic; }
+        .inter-200 { font-family: 'Inter', sans-serif; font-weight: 200; font-style: normal; }
+        .inter-200i { font-family: 'Inter', sans-serif; font-weight: 200; font-style: italic; }
+        .inter-300 { font-family: 'Inter', sans-serif; font-weight: 300; font-style: normal; }
+        .inter-300i { font-family: 'Inter', sans-serif; font-weight: 300; font-style: italic; }
+        .inter-400 { font-family: 'Inter', sans-serif; font-weight: 400; font-style: normal; }
+        .inter-400i { font-family: 'Inter', sans-serif; font-weight: 400; font-style: italic; }
+        .inter-500 { font-family: 'Inter', sans-serif; font-weight: 500; font-style: normal; }
+        .inter-500i { font-family: 'Inter', sans-serif; font-weight: 500; font-style: italic; }
+        .inter-600 { font-family: 'Inter', sans-serif; font-weight: 600; font-style: normal; }
+        .inter-600i { font-family: 'Inter', sans-serif; font-weight: 600; font-style: italic; }
+        .inter-700 { font-family: 'Inter', sans-serif; font-weight: 700; font-style: normal; }
+        .inter-700i { font-family: 'Inter', sans-serif; font-weight: 700; font-style: italic; }
+        .inter-800 { font-family: 'Inter', sans-serif; font-weight: 800; font-style: normal; }
+        .inter-800i { font-family: 'Inter', sans-serif; font-weight: 800; font-style: italic; }
+        .inter-900 { font-family: 'Inter', sans-serif; font-weight: 900; font-style: normal; }
+        .inter-900i { font-family: 'Inter', sans-serif; font-weight: 900; font-style: italic; }
+        /* Inter Display 字体样式 */
+        .inter-display-100 { font-family: 'Inter Display', sans-serif; font-weight: 100; font-style: normal; }
+        .inter-display-100i { font-family: 'Inter Display', sans-serif; font-weight: 100; font-style: italic; }
+        .inter-display-200 { font-family: 'Inter Display', sans-serif; font-weight: 200; font-style: normal; }
+        .inter-display-200i { font-family: 'Inter Display', sans-serif; font-weight: 200; font-style: italic; }
+        .inter-display-300 { font-family: 'Inter Display', sans-serif; font-weight: 300; font-style: normal; }
+        .inter-display-300i { font-family: 'Inter Display', sans-serif; font-weight: 300; font-style: italic; }
+        .inter-display-400 { font-family: 'Inter Display', sans-serif; font-weight: 400; font-style: normal; }
+        .inter-display-400i { font-family: 'Inter Display', sans-serif; font-weight: 400; font-style: italic; }
+        .inter-display-500 { font-family: 'Inter Display', sans-serif; font-weight: 500; font-style: normal; }
+        .inter-display-500i { font-family: 'Inter Display', sans-serif; font-weight: 500; font-style: italic; }
+        .inter-display-600 { font-family: 'Inter Display', sans-serif; font-weight: 600; font-style: normal; }
+        .inter-display-600i { font-family: 'Inter Display', sans-serif; font-weight: 600; font-style: italic; }
+        .inter-display-700 { font-family: 'Inter Display', sans-serif; font-weight: 700; font-style: normal; }
+        .inter-display-700i { font-family: 'Inter Display', sans-serif; font-weight: 700; font-style: italic; }
+        .inter-display-800 { font-family: 'Inter Display', sans-serif; font-weight: 800; font-style: normal; }
+        .inter-display-800i { font-family: 'Inter Display', sans-serif; font-weight: 800; font-style: italic; }
+        .inter-display-900 { font-family: 'Inter Display', sans-serif; font-weight: 900; font-style: normal; }
+        .inter-display-900i { font-family: 'Inter Display', sans-serif; font-weight: 900; font-style: italic; }
+        /* JetBrains Mono 字体样式 */
+        .jbm-100 { font-family: 'JetBrains Mono', monospace; font-weight: 100; font-style: normal; }
+        .jbm-100i { font-family: 'JetBrains Mono', monospace; font-weight: 100; font-style: italic; }
+        .jbm-200 { font-family: 'JetBrains Mono', monospace; font-weight: 200; font-style: normal; }
+        .jbm-200i { font-family: 'JetBrains Mono', monospace; font-weight: 200; font-style: italic; }
+        .jbm-300 { font-family: 'JetBrains Mono', monospace; font-weight: 300; font-style: normal; }
+        .jbm-300i { font-family: 'JetBrains Mono', monospace; font-weight: 300; font-style: italic; }
+        .jbm-400 { font-family: 'JetBrains Mono', monospace; font-weight: 400; font-style: normal; }
+        .jbm-400i { font-family: 'JetBrains Mono', monospace; font-weight: 400; font-style: italic; }
+        .jbm-500 { font-family: 'JetBrains Mono', monospace; font-weight: 500; font-style: normal; }
+        .jbm-500i { font-family: 'JetBrains Mono', monospace; font-weight: 500; font-style: italic; }
+        .jbm-600 { font-family: 'JetBrains Mono', monospace; font-weight: 600; font-style: normal; }
+        .jbm-600i { font-family: 'JetBrains Mono', monospace; font-weight: 600; font-style: italic; }
+        .jbm-700 { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-style: normal; }
+        .jbm-700i { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-style: italic; }
+        .jbm-800 { font-family: 'JetBrains Mono', monospace; font-weight: 800; font-style: normal; }
+        .jbm-800i { font-family: 'JetBrains Mono', monospace; font-weight: 800; font-style: italic; }
+        .jbm-900 { font-family: 'JetBrains Mono', monospace; font-weight: 900; font-style: normal; }
+        .jbm-900i { font-family: 'JetBrains Mono', monospace; font-weight: 900; font-style: italic; }
+        /* DinkieBitmap 像素字体样式 */
+        .dinkie-400 { font-family: 'DinkieBitmap', monospace; font-weight: 400; font-style: normal; font-size: 12px; }
+        .dinkie-400i { font-family: 'DinkieBitmap', monospace; font-weight: 400; font-style: italic; font-size: 12px; }
+        .dinkie-mono-400 { font-family: 'DinkieBitmap Mono', monospace; font-weight: 400; font-style: normal; font-size: 12px; }
+        /* 代码块样式 */
+        .code-block {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.875rem;
+            padding: 1rem;
+            background: #1e293b;
+            color: #f1f5f9;
+            border-radius: calc(var(--radius) - 0.25rem);
+            overflow-x: auto;
+            line-height: 1.5;
+        }
+        @media (prefers-color-scheme: dark) {
+            .code-block {
+                background: #020617;
+            }
+        }
+        /* UI 组件模拟 */
+        .ui-tag {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            background: #dbeafe;
+            color: #1e40af;
+            margin-right: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        @media (prefers-color-scheme: dark) {
+            .ui-tag {
+                background: #1e3a8a;
+                color: #93c5fd;
+            }
+        }
+        .ui-path {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            padding: 0.5rem 0.75rem;
+            background: var(--bg);
+            border-radius: calc(var(--radius) - 0.25rem);
+            border: 1px solid var(--border);
+            margin-bottom: 1rem;
+        }
+        .two-column {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+        footer {
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            margin-top: 3rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--border);
+        }
+    </style>
+</head>
+<body>
+<!-- 深色模式切换 -->
+<header>
+    <h1>Notebook 字体预览</h1>
+    <p class="subtitle">访问路径：<code>/notebook/static/font-preview.html</code> · 所有字体均为离线加载</p>
+    <div class="warning">
+        ⚠️ 注意：<strong>Inter 是纯西文字体，仅覆盖英文/数字/符号</strong>，中文会自动回退至系统字体（Windows 微软雅黑 / macOS 苹方 / Linux Noto Sans CJK）。如果需要统一中文字体，可后续添加思源黑体/霞鹜文楷。
+    </div>
+</header>
+<!-- 一、Inter 常规字体（UI 主力字体） -->
+<section class="section">
+    <h2 class="section-title">1. Inter 常规字体（UI 主力）</h2>
+    <p class="section-desc">用于按钮、标题栏、FM胶囊、路径、标签等所有UI元素，仅覆盖西文字符。</p>
+    <div class="two-column">
+        <!-- 100 Thin -->
+        <div class="sample-group">
+            <div class="sample-label">
+                <span class="weight-tag">100 Thin</span>
+                <span>Normal / Italic</span>
+            </div>
+            <div class="sample-text inter-100">The quick brown fox jumps over the lazy dog. 0123456789</div>
+            <div class="sample-text inter-100i" style="margin-top: 0.5rem;">ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz</div>
+        </div>
+        <!-- 200 ExtraLight -->
+        <div class="sample-group">
+            <div class="sample-label">
+                <span class="weight-tag">200 ExtraLight</span>
+                <span>Normal / Italic</span>
+            </div>
+            <div class="sample-text inter-200">The quick brown fox jumps over the lazy dog. 0123456789</div>
+            <div class="sample-text inter-200i" style="margin-top: 0.5rem;">ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz</div>
+        </div>
+        <!-- 300 Light -->
+        <div class="sample-group">
+            <div class="sample-label">
+                <span class="weight-tag">300 Light</span>
+                <span>Normal / Italic</span>
+            </div>
+            <div class="sample-text inter-300">The quick brown fox jumps over the lazy dog. 0123456789</div>
+            <div class="sample-text inter-300i" style="margin-top: 0.5rem;">ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz</div>
+        </div>
+        <!-- 400 Regular -->
+        <div class="sample-group">
+            <div class="sample-label">
+                <span class="weight-tag">400 Regular</span>
+                <span>Normal / Italic</span>
+            </div>
+            <div class="sample-text inter-400">The quick brown fox jumps over the lazy dog. 0123456789</div>
+            <div class="sample-text inter-400i" style="margin-top: 0.5rem;">ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz</div>
+        </div>
+        <!-- 500 Medium -->
+        <div class="sample-group">
+            <div class="sample-label">
+                <span class="weight-tag">500 Medium</span>
+                <span>Normal / Italic</span>
+            </div>
+            <div class="sample-text inter-500">The quick brown fox jumps over the lazy dog. 0123456789</div>
+            <div class="sample-text inter-500i" style="margin-top: 0.5rem;">ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz</div>
+        </div>
+        <!-- 600 SemiBold -->
+        <div class="sample-group">
+            <div class="sample-label">
+                <span class="weight-tag">600 SemiBold</span>
+                <span>Normal / Italic</span>
+            </div>
+            <div class="sample-text inter-600">The quick brown fox jumps over the lazy dog. 0123456789</div>
+            <div class="sample-text inter-600i" style="margin-top: 0.5rem;">ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz</div>
+        </div>
+        <!-- 700 Bold -->
+        <div class="sample-group">
+            <div class="sample-label">
+                <span class="weight-tag">700 Bold</span>
+                <span>Normal / Italic</span>
+            </div>
+            <div class="sample-text inter-700">The quick brown fox jumps over the lazy dog. 0123456789</div>
+            <div class="sample-text inter-700i" style="margin-top: 0.5rem;">ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz</div>
+        </div>
+        <!-- 800 ExtraBold -->
+        <div class="sample-group">
+            <div class="sample-label">
+                <span class="weight-tag">800 ExtraBold</span>
+                <span>Normal / Italic</span>
+            </div>
+            <div class="sample-text inter-800">The quick brown fox jumps over the lazy dog. 0123456789</div>
+            <div class="sample-text inter-800i" style="margin-top: 0.5rem;">ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz</div>
+        </div>
+        <!-- 900 Black -->
+        <div class="sample-group">
+            <div class="sample-label">
+                <span class="weight-tag">900 Black</span>
+                <span>Normal / Italic</span>
+            </div>
+            <div class="sample-text inter-900">The quick brown fox jumps over the lazy dog. 0123456789</div>
+            <div class="sample-text inter-900i" style="margin-top: 0.5rem;">ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz</div>
+        </div>
+    </div>
+    <!-- UI 场景模拟 -->
+    <div class="sample-group" style="margin-top: 2rem;">
+        <div class="sample-label">
+            <span class="weight-tag">UI 场景模拟</span>
+            <span>Inter 常规字体的实际应用</span>
+        </div>
+        <div class="ui-path">📁 notebook/posts/2026-07-12-markdown-guide.md</div>
+        <div>
+            <span class="ui-tag">Markdown</span>
+            <span class="ui-tag">Front Matter</span>
+            <span class="ui-tag">笔记</span>
+            <span class="ui-tag">发布</span>
+        </div>
+        <p class="sample-text inter-400" style="margin-top: 1rem;">
+            中英文混排测试：Hello 世界！这是 Inter 字体的实际效果，英文部分由 Inter 渲染，中文自动回退至系统字体。<br>
+            Front Matter 状态：<span style="color: #22c55e; font-weight: 500;">✅ 解析成功</span> · 最后修改：2026-07-12 15:30
+        </p>
+    </div>
+</section>
+<!-- 二、Inter Display 字体（大标题专用） -->
+<section class="section">
+    <h2 class="section-title">2. Inter Display 字体（大标题专用）</h2>
+    <p class="section-desc">仅用于 32px+ 的大标题，字间距经过优化，不适合正文使用。</p>
+    <div class="two-column">
+        <!-- 400 Regular -->
+        <div class="sample-group">
+            <div class="sample-label">
+                <span class="weight-tag">400 Regular</span>
+                <span>大标题效果</span>
+            </div>
+            <div class="sample-text inter-display-400" style="font-size: 2.5rem; line-height: 1.2;">Markdown 编辑器指南</div>
+            <div class="sample-text inter-display-400i" style="font-size: 2rem; line-height: 1.2; margin-top: 0.5rem;">Getting Started with Notes</div>
+        </div>
+        <!-- 500 Medium -->
+        <div class="sample-group">
+            <div class="sample-label">
+                <span class="weight-tag">500 Medium</span>
+                <span>大标题效果</span>
+            </div>
+            <div class="sample-text inter-display-500" style="font-size: 2.5rem; line-height: 1.2;">Front Matter 规范</div>
+            <div class="sample-text inter-display-500i" style="font-size: 2rem; line-height: 1.2; margin-top: 0.5rem;">Blog Publishing Workflow</div>
+        </div>
+        <!-- 600 SemiBold -->
+        <div class="sample-group">
+            <div class="sample-label">
+                <span class="weight-tag">600 SemiBold</span>
+                <span>大标题效果</span>
+            </div>
+            <div class="sample-text inter-display-600" style="font-size: 2.5rem; line-height: 1.2;">离线部署说明</div>
+            <div class="sample-text inter-display-600i" style="font-size: 2rem; line-height: 1.2; margin-top: 0.5rem;">System Configuration</div>
+        </div>
+        <!-- 700 Bold -->
+        <div class="sample-group">
+            <div class="sample-label">
+                <span class="weight-tag">700 Bold</span>
+                <span>大标题效果</span>
+            </div>
+            <div class="sample-text inter-display-700" style="font-size: 2.5rem; line-height: 1.2;">常见问题 FAQ</div>
+            <div class="sample-text inter-display-700i" style="font-size: 2rem; line-height: 1.2; margin-top: 0.5rem;">Troubleshooting Guide</div>
+        </div>
+    </div>
+</section>
+<!-- 三、JetBrains Mono 字体（代码/等宽专用） -->
+<section class="section">
+    <h2 class="section-title">3. JetBrains Mono 字体（代码/等宽专用）</h2>
+    <p class="section-desc">用于编辑器、代码块、FM配置、日志输出，所有字符等宽，适合对齐场景。</p>
+    <div class="two-column">
+        <!-- 400 Regular -->
+        <div class="sample-group">
+            <div class="sample-label">
+                <span class="weight-tag">400 Regular</span>
+                <span>Normal / Italic</span>
+            </div>
+            <div class="code-block jbm-400">
+                // Front Matter 配置示例
+                ---
+                layout: post
+                title: "Markdown 编辑器指南"
+                date: 2026-07-12 15:30:00 +0800
+                tags: [Markdown, Front Matter, 笔记]
+                draft: false
+                ---
+            </div>
+            <div class="code-block jbm-400i" style="margin-top: 0.5rem;">
+                /* 斜体注释：中英文混排测试 */
+                const message = "你好，世界"; // Hello World
+                console.log(message); // 输出日志
+            </div>
+        </div>
+        <!-- 500 Medium -->
+        <div class="sample-group">
+            <div class="sample-label">
+                <span class="weight-tag">500 Medium</span>
+                <span>Normal / Italic</span>
+            </div>
+            <div class="code-block jbm-500">
+                function calculateSum(a: number, b: number): number {
+                // 参数说明：a 和 b 为数字类型
+                return a + b; // 返回两数之和
+                }
+            </div>
+            <div class="code-block jbm-500i" style="margin-top: 0.5rem;">
+                <!-- 斜体标签：Markdown 语法示例 -->
+                *斜体文本* **粗体文本** `行内代码`
+                > 引用块内容：中文测试
+            </div>
+        </div>
+        <!-- 700 Bold -->
+        <div class="sample-group">
+            <div class="sample-label">
+                <span class="weight-tag">700 Bold</span>
+                <span>Normal / Italic</span>
+            </div>
+            <div class="code-block jbm-700">
+                ERROR: 2026-07-12 15:30:00 [MainThread] FM解析失败
+                WARNING: 2026-07-12 15:30:05 [Worker-1] 文件未保存
+                INFO: 2026-07-12 15:30:10 [Publisher] 博客发布成功
+            </div>
+            <div class="code-block jbm-700i" style="margin-top: 0.5rem;">
+                /* 粗体斜体：日志高亮示例 */
+                **CRITICAL**: 系统错误，请立即处理
+                *注意*: 此操作不可逆
+            </div>
+        </div>
+    </div>
+    <!-- 等宽对齐测试 -->
+    <div class="sample-group" style="margin-top: 2rem;">
+        <div class="sample-label">
+            <span class="weight-tag">等宽对齐测试</span>
+            <span>JetBrains Mono 的核心优势</span>
+        </div>
+        <div class="code-block jbm-400" style="font-size: 0.8125rem;">
+            名称          类型      必填  描述
+            ------------  ---------  ----  ------------------------
+            layout        string    是    页面布局模板
+            title         string    是    文章标题（支持中文）
+            date          datetime  是    发布时间（ISO 8601格式）
+            tags          array     否    文章标签列表
+            draft         boolean   否    是否为草稿
+            cover         string    否    封面图片路径
+        </div>
+    </div>
+</section>
+<!-- 四、DinkieBitmap 像素字体（特殊场景） -->
+<section class="section">
+    <h2 class="section-title">4. DinkieBitmap 像素字体（特殊场景）</h2>
+    <p class="section-desc">用于小尺寸标签、状态标识、复古风格UI，仅支持9px大小，适合低分辨率场景。</p>
+    <div class="two-column">
+        <!-- 常规像素字体 -->
+        <div class="sample-group">
+            <div class="sample-label">
+                <span class="weight-tag">DinkieBitmap Regular</span>
+                <span>常规像素字体</span>
+            </div>
+            <div class="sample-text dinkie-400">
+                像素字体测试：ABCabc123!@# 中文回退系统字体<br>
+                [INFO] 系统启动成功<br>
+                [WARN] 内存使用率85%<br>
+                [ERR] 文件读取失败
+            </div>
+            <div class="sample-text dinkie-400i" style="margin-top: 0.5rem;">
+                斜体像素字体：*斜体* _下划线_ ~删除线~
+            </div>
+        </div>
+        <!-- 等宽像素字体 -->
+        <div class="sample-group">
+            <div class="sample-label">
+                <span class="weight-tag">DinkieBitmap Mono</span>
+                <span>等宽像素字体</span>
+            </div>
+            <div class="sample-text dinkie-mono-400">
+                // 像素代码块
+                function test() {
+                let x = 10;
+                let y = 20;
+                return x + y;
+                }
+                // 中英文混排：Hello 世界！
+            </div>
+            <div style="margin-top: 1rem;">
+                <span class="dinkie-400" style="background: #22c55e; color: white; padding: 0.125rem 0.5rem; border-radius: 999px; margin-right: 0.5rem;">在线</span>
+                <span class="dinkie-400" style="background: #eab308; color: white; padding: 0.125rem 0.5rem; border-radius: 999px; margin-right: 0.5rem;">忙碌</span>
+                <span class="dinkie-400" style="background: #ef4444; color: white; padding: 0.125rem 0.5rem; border-radius: 999px;">离线</span>
+            </div>
+        </div>
+    </div>
+</section>
+<!-- 五、综合混排测试 -->
+<section class="section">
+    <h2 class="section-title">5. 综合混排测试（模拟真实笔记场景）</h2>
+    <p class="section-desc">模拟你实际使用中的字体组合效果，包含UI、代码、正文混排。</p>
+    <div class="sample-group">
+        <div class="sample-label">
+            <span class="weight-tag">真实场景模拟</span>
+            <span>FM头 + 正文 + 代码块 + 标签</span>
+        </div>
+        <div class="ui-path">📁 notebook/posts/2026-07-12-font-preview.md</div>
+        <div class="code-block jbm-500" style="margin-bottom: 1rem;">
+            ---
+            layout: post
+            title: "字体预览说明"
+            date: 2026-07-12 16:00:00 +0800
+            tags: [字体, Inter, JetBrains Mono, 像素字体]
+            draft: false
+            ---
+        </div>
+        <div class="sample-text inter-400" style="margin-bottom: 1rem;">
+            <strong style="font-weight: 600;">前言</strong>：本文档用于预览 Notebook 项目中的所有离线字体，包括 Inter 常规/Display、JetBrains Mono 等宽字体、DinkieBitmap 像素字体。所有字体均通过 <code>fonts.css</code> 加载，无需联网即可使用。
+            <br><br>
+            <strong style="font-weight: 600;">注意事项</strong>：Inter 是纯西文字体，中文部分会自动回退至系统字体。如果需要统一中文字体，可后续添加思源黑体或霞鹜文楷，只需在 <code>fonts.css</code> 中添加对应的 <code>@font-face</code> 规则即可。
+        </div>
+        <div class="code-block jbm-400" style="margin-bottom: 1rem;">
+            // 代码示例：中英文混排的等宽效果
+            function greet(name: string): string {
+            return `你好，${name}！Hello, ${name}!`;
+            }
+            console.log(greet("世界")); // 输出：你好，世界！Hello, 世界!
+        </div>
+        <div>
+            <span class="ui-tag">#字体预览</span>
+            <span class="ui-tag">#离线部署</span>
+            <span class="ui-tag">#UI优化</span>
+            <span class="dinkie-400" style="background: #3b82f6; color: white; padding: 0.125rem 0.5rem; border-radius: 999px; margin-right: 0.5rem;">v1.0.0</span>
+        </div>
+    </div>
+</section>
+<footer>
+    <p>© 2026 Notebook 项目 · 字体预览页 · 最后更新：2026-07-12</p>
+    <p style="margin-top: 0.5rem;">提示：浏览器只会加载页面中用到的字重，无需担心性能问题。如果字体未生效，请尝试清除浏览器缓存。</p>
+</footer>
+</body>
+</html>

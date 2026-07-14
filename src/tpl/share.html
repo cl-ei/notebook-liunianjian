@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>{{ title }} · 流年笺</title>
+
+    <!-- SEO / 社交分享 -->
+    <meta name="description" content="来自流年笺的分享笔记">
+    <meta property="og:title" content="{{ title }} · 流年笺">
+    <meta property="og:description" content="来自流年笺的分享笔记">
+    <meta property="og:type" content="article">
+    <meta name="robots" content="noindex,nofollow">
+    <script src="/notebook/static/js/marked-18.0.5.js"></script>
+    <script src="/notebook/static/js/purify-3.1.6.min.js"></script>
+    <script defer src="/notebook/static/js/utils.js"></script>
+    <style>
+        :root {
+            --bg: #f8f9fa;
+            --paper-bg: #ffffff;
+            --text: #212529;
+            --border: #dee2e6;
+            --max-width: 960px;      /* ✅ 书页宽度 */
+            --side-padding: 34px;    /* ✅ 移动端内边距 */
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--bg);
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            color: var(--text);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .share-wrapper {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;      /* ✅ 水平居中 */
+            box-sizing: border-box;
+        }
+
+        /* ✅ 顶部栏：始终铺满 */
+        .share-header {
+            width: 100%;
+            max-width: var(--max-width);
+            flex-shrink: 0;
+            padding: 10px var(--side-padding);
+            border-bottom: 1px solid var(--border);
+            background: var(--paper-bg);
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-sizing: border-box;
+        }
+
+        .share-header span {
+            opacity: 0.7;
+        }
+
+        .share-header a {
+            color: #4dabf7;
+            text-decoration: none;
+        }
+
+        /* ✅ iframe 容器：书页效果 */
+        .share-body {
+            width: 100%;
+            max-width: var(--max-width);
+            flex: 1;
+            background: var(--paper-bg);
+            box-shadow: 0 4px 24px rgba(0,0,0,0.08); /* ✅ 纸页投影 */
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ✅ iframe 本身 */
+        .share-frame {
+            flex: 1;
+            border: none;
+            width: 100%;
+            min-height: 0;
+            background: var(--paper-bg);
+        }
+
+        /* ✅ 加载占位 */
+        .loading {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #868e96;
+            font-size: 14px;
+        }
+
+        /* ✅ 响应式：窄屏铺满 */
+        @media (max-width: 768px) {
+            .share-wrapper {
+                align-items: stretch; /* ✅ 取消居中 */
+            }
+
+            .share-body {
+                max-width: 100%;
+                box-shadow: none;    /* ✅ 手机上去掉阴影 */
+                border: none;
+            }
+
+            .share-header {
+                border-radius: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="share-wrapper">
+    <!-- ✅ 安全中转区：用户输入永不直接进入 HTML -->
+    <textarea id="rawContent" hidden>{{ content }}</textarea>
+    <!-- ✅ iframe 书页容器 -->
+    <div class="share-body">
+        <div class="loading" id="loading">正在加载内容…</div>
+
+        <iframe
+                id="renderFrame"
+                class="share-frame"
+                sandbox="allow-scripts allow-same-origin"
+                src="/notebook/static/render.html"
+                style="display:none;"
+        ></iframe>
+    </div>
+</div>
+
+
+<script>
+    (function () {
+        const iframe = document.getElementById('renderFrame');
+        const loading = document.getElementById('loading');
+
+        // ✅ 从 textarea 读取，不经过 JS 字符串解析
+        const rawContent = document.getElementById('rawContent').value;
+
+        /**
+         * 向 iframe 发送内容
+         */
+        function sendContent() {
+            if (!rawContent) {
+                iframe.contentWindow.postMessage({
+                    type: 'SYNC_CONTENT',
+                    html: '<div class="loading">（空内容）</div>'
+                }, '*');
+                return;
+            }
+            const rendered = renderMarkdown(rawContent, '/', 'null', 'null');
+            iframe.contentWindow.postMessage({
+                type: 'SYNC_CONTENT',
+                html: rendered.html,
+            }, '*');
+        }
+
+        /**
+         * 监听 iframe 就绪信号
+         */
+        window.addEventListener('message', function (event) {
+            if (event.source !== iframe.contentWindow) return;
+
+            if (event.data.type === 'IFRAME_READY') {
+                sendContent();
+            }
+        });
+
+        /**
+         * iframe 加载完成兜底
+         */
+        iframe.addEventListener('load', function () {
+            loading.style.display = 'none';
+            iframe.style.display = 'block';
+
+            // 防止 iframe 已 ready 但消息晚到
+            setTimeout(sendContent, 50);
+        });
+
+        /**
+         * 安全兜底：8 秒超时
+         */
+        setTimeout(function () {
+            if (loading.style.display !== 'none') {
+                loading.textContent = '加载超时，请刷新页面重试';
+            }
+        }, 8000);
+
+    })();
+</script>
+</body>
+</html>

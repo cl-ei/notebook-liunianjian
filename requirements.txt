@@ -1,0 +1,11 @@
+rsa
+jinja2
+requests
+pydantic
+fastapi
+starlette
+uvicorn
+cryptography
+python-multipart
+xpinyin
+aiofiles

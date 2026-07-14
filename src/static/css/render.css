@@ -1,0 +1,204 @@
+/* 基础重置 */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+/* ==========================================
+   自定义滚动条（和父页面完全统一）
+   ========================================== */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #ced4da;
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #adb5bd;
+}
+
+/* Firefox 兼容 */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: #ced4da transparent;
+}
+
+body {
+    font-family:
+            'LXGW WenKai Mono',      /* 1️⃣ 首选：中文等宽楷体 */
+            'JetBrains Mono',        /* 2️⃣ 英文等宽 */
+            'Sarasa Mono SC',        /* 3️⃣ 中文等宽黑体（开发者常用） */
+            'Noto Sans Mono CJK SC', /* 4️⃣ 安卓 / Linux 中文等宽 */
+            'Microsoft YaHei',       /* 5️⃣ Windows UI 兜底 */
+            'PingFang SC',           /* 6️⃣ macOS UI 兜底 */
+            monospace;               /* 7️⃣ 系统等宽最终兜底 */
+    font-size: 15px;
+    line-height: 1.7;
+    color: #3F3F3F;
+    background: #ffffff;
+    padding: 20px 24px;
+    overflow-x: hidden;
+}
+
+/* Markdown 渲染样式 - 精准控制 */
+#content {
+    max-width: 100%;
+}
+
+#content h1 {
+    font-size: 2em;
+    font-weight: 600;
+    margin: 24px 0 16px 0;
+    padding-bottom: 0.3em;
+    line-height: 1.25;
+}
+
+#content h2 {
+    font-size: 1.5em;
+    font-weight: 600;
+    margin: 24px 0 16px 0;
+    padding-bottom: 0.3em;
+    line-height: 1.25;
+}
+
+#content h3 {
+    font-size: 1.25em;
+    font-weight: 600;
+    margin: 24px 0 16px 0;
+    line-height: 1.25;
+}
+
+#content h4 {
+    font-size: 1em;
+    font-weight: 600;
+    margin: 24px 0 16px 0;
+    line-height: 1.25;
+}
+
+#content h5 {
+    font-size: 0.875em;
+    font-weight: 600;
+    margin: 24px 0 16px 0;
+    line-height: 1.25;
+}
+
+#content p {
+    margin: 0 0 16px 0;
+}
+
+#content a{
+    color: #3f3f3f;
+    text-decoration: none;
+    border-bottom: 1px solid #3f3f3f;
+    transition: ease-out .3s;
+    -webkit-transition: ease-in-out .3s;
+    -moz-transition: ease-in-out .3s;
+    -o-transition: ease-in-out .3s;
+    -ms-transition: ease-in-out .3s;
+    cursor: pointer;
+}
+#content a:hover{
+    color: #0080e8;
+    border-bottom: 1px solid #0080e8;
+}
+#content code {
+    padding: 0.2em 0.4em;
+    font-size: 85%;
+    background-color: rgba(27, 31, 35, 0.05);
+    border-radius: 3px;
+    font-family: "JetBrains Mono", "LXGW WenKai Mono", Consolas, monospace;
+}
+
+#content pre {
+    padding: 16px;
+    overflow: auto;
+    font-size: 85%;
+    line-height: 1.45;
+    background-color: #f6f8fa;
+    border-radius: 3px;
+    margin: 0 0 16px 0;
+}
+
+#content pre code {
+    background: transparent;
+    padding: 0;
+    font-size: inherit;
+}
+
+#content blockquote {
+    padding: 0 1em;
+    color: #6a737d;
+    border-left: 0.25em solid #dfe2e5;
+    margin: 0 0 16px 0;
+}
+
+#content table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    color: #333;
+    background: white;
+}
+
+#content table th {
+    padding: 12px 16px;
+    font-weight: 500;
+    background-color: #fafafa;
+    border-bottom: 1px solid #eee;
+}
+
+#content th, td {
+    text-align: center;
+}
+
+#content table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid #eee;
+}
+
+#content table tr:hover td {
+    background-color: #f5f5f5;
+}
+
+#content ul,
+#content ol {
+    padding-left: 2em;
+    margin: 0 0 16px 0;
+}
+
+#content li {
+    margin-top: 0.25em;
+}
+
+#content hr {
+    height: 1px;
+    padding: 0;
+    margin: 24px 0;
+    background-color: #939393;
+    border: 0;
+}
+#content img {
+    max-width: 100%;
+    height: auto;
+    min-height: 24px;       /* 锁定最小高度，避免尺寸变化 */
+    min-width: 24px;        /* 锁定最小宽度 */
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    box-sizing: border-box;
+    display: inline-block;  /* 保持行内块，避免布局跳动 */
+    vertical-align: middle;
+    margin: 16px auto;      /* 保留原来的外边距 */
+}
+#content img[data-failed="true"] {
+    opacity: 0.5;
+    border-color: #dc3545;
+    background: #f8f9fa;
+}

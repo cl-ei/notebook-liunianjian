@@ -1,0 +1,452 @@
+/* ============================================
+   1. Inter（UI 默认字体，用于正文/按钮/标题）
+   ============================================ */
+@font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 100;
+    font-display: swap;
+    src: url('./Inter/Inter-Thin.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'Inter';
+    font-style: italic;
+    font-weight: 100;
+    font-display: swap;
+    src: url('./Inter/Inter-ThinItalic.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 200;
+    font-display: swap;
+    src: url('./Inter/Inter-ExtraLight.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'Inter';
+    font-style: italic;
+    font-weight: 200;
+    font-display: swap;
+    src: url('./Inter/Inter-ExtraLightItalic.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 300;
+    font-display: swap;
+    src: url('./Inter/Inter-Light.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'Inter';
+    font-style: italic;
+    font-weight: 300;
+    font-display: swap;
+    src: url('./Inter/Inter-LightItalic.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('./Inter/Inter-Regular.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'Inter';
+    font-style: italic;
+    font-weight: 400;
+    font-display: swap;
+    src: url('./Inter/Inter-Italic.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 500;
+    font-display: swap;
+    src: url('./Inter/Inter-Medium.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'Inter';
+    font-style: italic;
+    font-weight: 500;
+    font-display: swap;
+    src: url('./Inter/Inter-MediumItalic.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 600;
+    font-display: swap;
+    src: url('./Inter/Inter-SemiBold.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'Inter';
+    font-style: italic;
+    font-weight: 600;
+    font-display: swap;
+    src: url('./Inter/Inter-SemiBoldItalic.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url('./Inter/Inter-Bold.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'Inter';
+    font-style: italic;
+    font-weight: 700;
+    font-display: swap;
+    src: url('./Inter/Inter-BoldItalic.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 800;
+    font-display: swap;
+    src: url('./Inter/Inter-ExtraBold.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'Inter';
+    font-style: italic;
+    font-weight: 800;
+    font-display: swap;
+    src: url('./Inter/Inter-ExtraBoldItalic.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 900;
+    font-display: swap;
+    src: url('./Inter/Inter-Black.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'Inter';
+    font-style: italic;
+    font-weight: 900;
+    font-display: swap;
+    src: url('./Inter/Inter-BlackItalic.woff2') format('woff2');
+}
+
+/* ============================================
+   2. Inter Display（大标题专用字体，仅用于超大字号）
+   注意：和普通 Inter 分开命名，避免正文误用
+   ============================================ */
+@font-face {
+    font-family: 'Inter Display';
+    font-style: normal;
+    font-weight: 100;
+    font-display: swap;
+    src: url('./Inter/InterDisplay-Thin.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'Inter Display';
+    font-style: italic;
+    font-weight: 100;
+    font-display: swap;
+    src: url('./Inter/InterDisplay-ThinItalic.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'Inter Display';
+    font-style: normal;
+    font-weight: 200;
+    font-display: swap;
+    src: url('./Inter/InterDisplay-ExtraLight.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'Inter Display';
+    font-style: italic;
+    font-weight: 200;
+    font-display: swap;
+    src: url('./Inter/InterDisplay-ExtraLightItalic.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'Inter Display';
+    font-style: normal;
+    font-weight: 300;
+    font-display: swap;
+    src: url('./Inter/InterDisplay-Light.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'Inter Display';
+    font-style: italic;
+    font-weight: 300;
+    font-display: swap;
+    src: url('./Inter/InterDisplay-LightItalic.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'Inter Display';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('./Inter/InterDisplay-Regular.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'Inter Display';
+    font-style: italic;
+    font-weight: 400;
+    font-display: swap;
+    src: url('./Inter/InterDisplay-Italic.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'Inter Display';
+    font-style: normal;
+    font-weight: 500;
+    font-display: swap;
+    src: url('./Inter/InterDisplay-Medium.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'Inter Display';
+    font-style: italic;
+    font-weight: 500;
+    font-display: swap;
+    src: url('./Inter/InterDisplay-MediumItalic.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'Inter Display';
+    font-style: normal;
+    font-weight: 600;
+    font-display: swap;
+    src: url('./Inter/InterDisplay-SemiBold.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'Inter Display';
+    font-style: italic;
+    font-weight: 600;
+    font-display: swap;
+    src: url('./Inter/InterDisplay-SemiBoldItalic.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'Inter Display';
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url('./Inter/InterDisplay-Bold.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'Inter Display';
+    font-style: italic;
+    font-weight: 700;
+    font-display: swap;
+    src: url('./Inter/InterDisplay-BoldItalic.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'Inter Display';
+    font-style: normal;
+    font-weight: 800;
+    font-display: swap;
+    src: url('./Inter/InterDisplay-ExtraBold.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'Inter Display';
+    font-style: italic;
+    font-weight: 800;
+    font-display: swap;
+    src: url('./Inter/InterDisplay-ExtraBoldItalic.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'Inter Display';
+    font-style: normal;
+    font-weight: 900;
+    font-display: swap;
+    src: url('./Inter/InterDisplay-Black.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'Inter Display';
+    font-style: italic;
+    font-weight: 900;
+    font-display: swap;
+    src: url('./Inter/InterDisplay-BlackItalic.woff2') format('woff2');
+}
+
+/* ============================================
+   3. JetBrains Mono（代码字体，用于编辑器/代码块）
+   ============================================ */
+@font-face {
+    font-family: 'JetBrains Mono';
+    font-style: normal;
+    font-weight: 100;
+    font-display: swap;
+    src: url('./JetBrainsMono/JetBrainsMono-Thin.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'JetBrains Mono';
+    font-style: italic;
+    font-weight: 100;
+    font-display: swap;
+    src: url('./JetBrainsMono/JetBrainsMono-ThinItalic.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'JetBrains Mono';
+    font-style: normal;
+    font-weight: 200;
+    font-display: swap;
+    src: url('./JetBrainsMono/JetBrainsMono-ExtraLight.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'JetBrains Mono';
+    font-style: italic;
+    font-weight: 200;
+    font-display: swap;
+    src: url('./JetBrainsMono/JetBrainsMono-ExtraLightItalic.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'JetBrains Mono';
+    font-style: normal;
+    font-weight: 300;
+    font-display: swap;
+    src: url('./JetBrainsMono/JetBrainsMono-Light.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'JetBrains Mono';
+    font-style: italic;
+    font-weight: 300;
+    font-display: swap;
+    src: url('./JetBrainsMono/JetBrainsMono-LightItalic.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'JetBrains Mono';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('./JetBrainsMono/JetBrainsMono-Regular.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'JetBrains Mono';
+    font-style: italic;
+    font-weight: 400;
+    font-display: swap;
+    src: url('./JetBrainsMono/JetBrainsMono-Italic.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'JetBrains Mono';
+    font-style: normal;
+    font-weight: 500;
+    font-display: swap;
+    src: url('./JetBrainsMono/JetBrainsMono-Medium.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'JetBrains Mono';
+    font-style: italic;
+    font-weight: 500;
+    font-display: swap;
+    src: url('./JetBrainsMono/JetBrainsMono-MediumItalic.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'JetBrains Mono';
+    font-style: normal;
+    font-weight: 600;
+    font-display: swap;
+    src: url('./JetBrainsMono/JetBrainsMono-SemiBold.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'JetBrains Mono';
+    font-style: italic;
+    font-weight: 600;
+    font-display: swap;
+    src: url('./JetBrainsMono/JetBrainsMono-SemiBoldItalic.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'JetBrains Mono';
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url('./JetBrainsMono/JetBrainsMono-Bold.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'JetBrains Mono';
+    font-style: italic;
+    font-weight: 700;
+    font-display: swap;
+    src: url('./JetBrainsMono/JetBrainsMono-BoldItalic.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'JetBrains Mono';
+    font-style: normal;
+    font-weight: 800;
+    font-display: swap;
+    src: url('./JetBrainsMono/JetBrainsMono-ExtraBold.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'JetBrains Mono';
+    font-style: italic;
+    font-weight: 800;
+    font-display: swap;
+    src: url('./JetBrainsMono/JetBrainsMono-ExtraBoldItalic.woff2') format('woff2');
+}
+
+/* ============================================
+   4. DinkieBitmap（像素字体，用于特殊场景）
+   ============================================ */
+@font-face {
+    font-family: 'DinkieBitmap';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('./DinkieBitmap-9px.woff2') format('woff2');
+}
+/* 代码专用像素字体 */
+@font-face {
+    font-family: 'DinkieBitmap Mono';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('./DinkieBitmap-9pxCode.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'DinkieBitmap';
+    font-style: italic;
+    font-weight: 400;
+    font-display: swap;
+    src: url('./DinkieBitmap-9pxItalic.woff2') format('woff2');
+}
+
+/* ============================================
+   5. LXGW WenKai（中文楷体，用于正文/标题）
+   ============================================ */
+@font-face {
+    font-family: 'LXGW WenKai';
+    font-style: normal;
+    font-weight: 300;
+    font-display: swap;
+    src: url('./LXGW/LXGWWenKai-Light.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'LXGW WenKai';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('./LXGW/LXGWWenKai-Regular.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'LXGW WenKai';
+    font-style: normal;
+    font-weight: 500;
+    font-display: swap;
+    src: url('./LXGW/LXGWWenKai-Medium.woff2') format('woff2');
+}
+
+/* ============================================
+   6. LXGW WenKai Mono（中文等宽楷体，用于代码块/表格）
+   ============================================ */
+@font-face {
+    font-family: 'LXGW WenKai Mono';
+    font-style: normal;
+    font-weight: 300;
+    font-display: swap;
+    src: url('./LXGW/LXGWWenKaiMono-Light.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'LXGW WenKai Mono';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('./LXGW/LXGWWenKaiMono-Regular.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'LXGW WenKai Mono';
+    font-style: normal;
+    font-weight: 500;
+    font-display: swap;
+    src: url('./LXGW/LXGWWenKaiMono-Medium.woff2') format('woff2');
+}

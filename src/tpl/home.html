@@ -1,0 +1,2015 @@
+<!DOCTYPE html>
+<html lang="zh-CN" x-data="notebookApp()" x-cloak>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>流年笺</title>
+
+    <link rel="stylesheet" href="/notebook/static/font-awesome-6-4-0/css/all.min.css">
+    <link rel="stylesheet" href="/notebook/static/fonts/fonts.css">
+    <script src="/notebook/static/js/marked-18.0.5.js"></script>
+    <script src="/notebook/static/js/diff_match_patch.js"></script>
+    <script src="/notebook/static/js/spark-md5.min.js"></script>
+    <script src="/notebook/static/js/purify-3.1.6.min.js"></script>
+    <script src="/notebook/static/js/tailwindcss-3.4.17.js"></script>
+
+    <script defer src="/notebook/static/js/utils.js"></script>
+    <script defer src="/notebook/static/js/tree-browser.js"></script>
+    <script defer src="/notebook/static/js/alpinejs-3.x.x-cdn.min.js"></script>
+    <style>
+        /* ========== 全局基础 ========== */
+        [x-cloak] { display: none !important; }
+
+        :root {
+            --z-nav: 30;
+            --z-context-menu: 70;
+            --z-normal-modal: 80;
+            --z-modal: 80;
+            --z-history: 85;
+            --z-modal-share: 85;
+            --z-overlay: 120;
+            --z-toast: 130;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background-color: #f8f9fa;
+            color: #212529;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        /* ========== 滚动条 ========== */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #ced4da; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #adb5bd; }
+
+        /* ========== 编辑器 ========== */
+        textarea.editor {
+            font-family:
+                    'JetBrains Mono',
+                    'Sarasa Mono SC',
+                    'Noto Sans Mono CJK SC',
+                    'Microsoft YaHei',
+                    'PingFang SC',
+                    monospace;
+            font-size: 14px;
+            line-height: 1.7;
+            tab-size: 4;
+        }
+
+        /* ========== FM胶囊 ========== */
+        .fm-capsule {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 999px; /* 胶囊形状 */
+            font-size: 10px;
+            font-weight: 600;
+            color: white;
+            transition: background-color 0.4s ease, box-shadow 0.4s ease; /* 关键：平滑过渡 */
+            cursor: default;
+            user-select: none;
+        }
+
+        /* 默认状态（代码图标，非胶囊） */
+        .fm-default {
+            color: #9ca3af; /* gray-400 */
+            font-size: 10px;
+        }
+
+        /* 状态1: OK - 绿色 */
+        .fm-ok {
+            background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+            box-shadow: 0 1px 3px rgba(34, 197, 94, 0.2);
+        }
+
+        /* 状态-1: Error - 黄色 */
+        .fm-error {
+            background: linear-gradient(135deg, #facc15 0%, #eab308 100%);
+            box-shadow: 0 1px 3px rgba(234, 179, 8, 0.2);
+        }
+
+        /* 移除之前的流光动画，因为我们不需要了 */
+        .fm-capsule::before {
+            display: none;
+        }
+
+        /* ========== 加载动画 ========== */
+        .loading-spinner {
+            width: 14px; height: 14px;
+            border: 2px solid #e9ecef;
+            border-top-color: #4dabf7;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+<!-- ============================
+     [NAV] 顶部导航栏
+     ============================ -->
+<nav class="h-14 bg-white border-b border-gray-200 flex items-center justify-center px-4 flex-shrink-0 shadow-sm relative z-[var(--z-nav)]">
+    <div class="absolute left-4 flex items-center space-x-1">
+        <a href="#" @click.prevent="navigateAway()" class="flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-all duration-150" title="返回主页">
+            <i class="fas fa-home text-sm"></i>
+            <span class="text-sm font-medium hidden sm:inline">主页</span>
+        </a>
+        <div class="h-6 w-px bg-gray-200 mx-1"></div>
+        <button x-show="currentFile" @click="saveFile()" :disabled="isSaving" class="flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed" title="保存 (Ctrl+S)">
+            <i class="fas fa-save text-sm"></i>
+            <span class="text-sm font-medium hidden sm:inline">保存</span>
+        </button>
+        <button x-show="currentFile" @click="showHistory()" class="flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-all duration-150" title="历史版本">
+            <i class="fas fa-history text-sm"></i>
+            <span class="text-sm font-medium hidden sm:inline">历史</span>
+        </button>
+    </div>
+
+    <div class="flex items-center justify-center">
+        <span class="font-bold text-gray-800 text-sm tracking-wide">流年笺</span>
+    </div>
+
+    <div class="absolute right-4 flex items-center space-x-2">
+        <button style="display: none;" @click="showSearch = !showSearch" class="p-2 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-all duration-150" title="搜索 (Ctrl+K)">
+            <i class="fas fa-search text-sm"></i>
+        </button>
+        <div class="flex items-center bg-gray-100 rounded-lg p-0.5 ml-1">
+            <button @click="viewMode = 'single'" :class="viewMode === 'single' ? 'bg-white text-blue-500 shadow-sm' : 'text-gray-400 hover:text-gray-600'" class="px-2.5 py-1.5 rounded-md text-xs transition-all duration-150" title="单页视图">
+                <i class="fas fa-window-maximize"></i>
+            </button>
+            <button @click="viewMode = 'split'" :class="viewMode === 'split' ? 'bg-white text-blue-500 shadow-sm' : 'text-gray-400 hover:text-gray-600'" class="px-2.5 py-1.5 rounded-md text-xs transition-all duration-150" title="双页视图">
+                <i class="fas fa-columns"></i>
+            </button>
+        </div>
+        <div class="h-6 w-px bg-gray-200 mx-1"></div>
+        <div class="relative">
+            <button @click="userMenu = !userMenu" class="flex items-center space-x-2 px-2 py-1.5 rounded-lg hover:bg-gray-100 transition-colors max-w-[200px]">
+                <div class="w-7 h-7 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0" x-text="currentUserEmail.charAt(0).toUpperCase()"></div>
+                <span class="hidden md:inline text-xs font-medium text-gray-700 truncate" x-text="currentUserEmail"></span>
+            </button>
+            <div x-show="userMenu" @click.away="userMenu = false" @keydown.escape="userMenu = false" x-transition class="absolute right-0 top-full mt-1.5 w-56 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-[var(--z-normal-modal)]">
+                <!-- 用户信息头部（保留，符合认知） -->
+                <div class="px-4 py-3 border-b border-gray-100">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white font-bold shadow-sm" x-text="currentUserEmail.charAt(0).toUpperCase()"></div>
+                        <div class="min-w-0">
+                            <p class="text-sm font-medium text-gray-800 truncate" x-text="currentUserEmail"></p>
+                            <p class="text-xs text-gray-500">已登录</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 1. 修改密码 -->
+                <button @click="openChangePwdModal()" type="button" class="w-full flex items-center space-x-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors">
+                    <i class="fas fa-key text-gray-400 w-4"></i>
+                    <span>修改密码</span>
+                </button>
+
+                <!-- 2. 关于 -->
+                <button @click="openAboutModal()" type="button" class="w-full flex items-center space-x-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors">
+                    <i class="fas fa-info-circle text-gray-400 w-4"></i>
+                    <span>关于</span>
+                </button>
+
+                <!-- 分割线 -->
+                <div class="border-t border-gray-100 my-1"></div>
+
+                <!-- 3. 退出登录 -->
+                <button @click="logout()" type="button" class="w-full flex items-center space-x-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors">
+                    <i class="fas fa-sign-out-alt w-4"></i>
+                    <span>退出登录</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<!-- ============================
+     [LAYOUT] 主内容区
+     ============================ -->
+<div class="flex" style="height: calc(100vh - 3.5rem);">
+    <aside
+            x-show="!sidebarCollapsed"
+            x-transition:enter="transition ease-out duration-300"
+            x-transition:enter-start="-translate-x-full opacity-0"
+            x-transition:enter-end="translate-x-0 opacity-100"
+            x-transition:leave="transition ease-in duration-200"
+            x-transition:leave-start="translate-x-0 opacity-100"
+            x-transition:leave-end="-translate-x-full opacity-0"
+            class="w-64 bg-white border-r border-gray-200 flex-shrink-0 overflow-hidden flex flex-col absolute md:relative z-20 h-full"
+    >
+        <div class="h-11 p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+            <h3 class="text-[11px] font-bold text-gray-400 uppercase tracking-wider">文件管理</h3>
+        </div>
+        <div x-data="treeBrowser()" class="h-full">
+            <div class="overflow-auto flex-1 p-2 h-full" @click="onTreeClick" @contextmenu.prevent="onTreeRightClick" x-html="treeHtml"></div>
+            <template x-teleport="body">
+                <div
+                        x-show="contextMenu.show"
+                        x-cloak
+                        @click.away="closeContextMenu()"
+                        @contextmenu.prevent="closeContextMenu()"
+                        x-transition:enter="transition ease-out duration-100"
+                        x-transition:enter-start="opacity-0 scale-95"
+                        x-transition:enter-end="opacity-100 scale-100"
+                        x-transition:leave="transition ease-in duration-75"
+                        x-transition:leave-start="opacity-100 scale-100"
+                        x-transition:leave-end="opacity-0 scale-95"
+                        class="fixed z-[var(--z-context-menu)] min-w-[180px] bg-white rounded-xl shadow-2xl border border-gray-100 py-1 overflow-hidden"
+                        :style="`left: ${contextMenu.x}px; top: ${contextMenu.y}px;`"
+                >
+                    <div x-show="contextMenu.targetNode" class="px-3 py-2 border-b border-gray-50 bg-gray-50/50">
+                        <p class="text-xs text-gray-400 truncate" x-text="contextMenu.targetNode?.name || ''"></p>
+                    </div>
+                    <template x-for="(item, index) in contextMenu.items" :key="index">
+                        <div>
+                            <div x-show="item.divider" class="my-1 border-t border-gray-100"></div>
+                            <button
+                                    x-show="!item.divider"
+                                    @click="executeContextAction(item.action)"
+                                    class="w-full text-left px-3 py-2.5 text-sm flex items-center space-x-2 transition-colors"
+                                    :class="{
+                                'text-gray-700 hover:bg-blue-50 hover:text-blue-600': !item.danger && !item.highlight,
+                                'text-red-500 hover:bg-red-50': item.danger,
+                                'text-blue-600 bg-blue-50 font-medium': item.highlight,
+                                'hover:bg-gray-50': !item.danger && !item.highlight
+                            }"
+                            >
+                                <span x-text="item.label"></span>
+                            </button>
+                        </div>
+                    </template>
+                </div>
+            </template>
+        </div>
+    </aside>
+
+    <button
+            @click="sidebarCollapsed = !sidebarCollapsed"
+            class="absolute left-0 top-1/2 -translate-y-1/2 z-30 transition-all duration-300"
+            :class="sidebarCollapsed ? 'ml-0' : 'ml-64'"
+    >
+        <div class="bg-white border border-gray-200 rounded-r-lg p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-all shadow-sm">
+            <i :class="sidebarCollapsed ? 'fas fa-chevron-right' : 'fas fa-chevron-left'" class="text-xs"></i>
+        </div>
+    </button>
+
+    <!-- ============================
+         [LAYOUT] 主编辑区（单/双页共用 · 无动画）
+         ============================ -->
+    <main class="flex-1 overflow-hidden bg-gray-50 flex flex-col">
+        <div class="flex h-full">
+            <!-- =======================
+                 编辑区（永远存在）
+                 ======================= -->
+            <div class="flex flex-col min-w-0 h-full"
+                 :class="viewMode === 'single' ? 'w-full' : 'w-1/2'">
+                <div class="h-11 bg-white border-b border-gray-200 flex items-center px-4 shadow-sm">
+                    <template x-if="currentFile">
+                        <div class="flex items-center h-5 relative group">
+                            <!-- MD 文件：动态胶囊 -->
+                            <i x-show="isMarkdownType(currentFile.id) && currentFile.fmStatus === null"
+                               class="fas fa-code text-gray-400 text-[10px] pointer-events-none select-none"
+                            ></i>
+                            <div
+                                    x-show="isMarkdownType(currentFile.id) && (currentFile.fmStatus === 1 || currentFile.fmStatus === -1)"
+                                    @click.stop="fmBubbleOpen = !fmBubbleOpen"
+                                    :class="{
+                                        'fm-capsule fm-ok': currentFile.fmStatus === 1,
+                                        'fm-capsule fm-error': currentFile.fmStatus === -1
+                                    }"
+                                    class="cursor-pointer hover:scale-105 transition-transform duration-150 ease-out z-10"
+                            >
+                                <i :class="{
+                                    'fas fa-check': currentFile.fmStatus === 1,
+                                    'fas fa-exclamation-triangle': currentFile.fmStatus === -1
+                                }" class="text-[10px]"></i>
+                                <span class="ml-1 font-semibold">Front Matter</span>
+                            </div>
+
+                            <!-- FM 轻量悬浮气泡 -->
+                            <div x-show="fmBubbleOpen && (currentFile.fmStatus === 1 || currentFile.fmStatus === -1)"
+                                 @click.away="fmBubbleOpen = false"
+                                 @keydown.escape.window="fmBubbleOpen = false"
+                                 x-cloak
+                                 x-transition:enter="transition ease-out duration-150"
+                                 x-transition:enter-start="opacity-0 translate-y-1"
+                                 x-transition:enter-end="opacity-100 translate-y-0"
+                                 x-transition:leave="transition ease-in duration-100"
+                                 x-transition:leave-start="opacity-100 translate-y-0"
+                                 x-transition:leave-end="opacity-0 translate-y-1"
+                                 class="absolute top-full left-0 mt-2 w-[28rem] bg-white rounded-xl shadow-lg border border-gray-100 p-5 z-50 text-sm
+                                    before:content-[''] before:absolute before:-top-2 before:left-6
+                                    before:border-8 before:border-transparent before:border-b-white
+                                    max-h-[80vh] overflow-y-auto">
+
+                                <div class="pt-4 pb-3 mb-3 border-b border-gray-100">
+                                    <div class="flex items-center space-x-1.5 mb-2">
+                                        <i :class="{
+                                        'fas fa-check text-green-500': currentFile.fmStatus === 1,
+                                        'fas fa-exclamation-triangle text-yellow-500': currentFile.fmStatus === -1
+                                    }" class="text-[10px]"></i>
+                                        <span class="text-xs font-medium text-gray-700">解析日志</span>
+                                    </div>
+                                    <div class="text-xs text-gray-600 font-mono bg-gray-50 p-3 rounded-lg
+                                    max-h-48 overflow-y-auto
+                                    whitespace-pre-line break-words leading-relaxed"
+                                         x-html="currentFile.fmLog || '格式解析正确'">
+                                    </div>
+                                </div>
+
+                                <div class="mb-4">
+                                    <div class="text-xs text-gray-500 leading-relaxed mb-3">
+                                        <p class="mb-1.5"><strong>什么是 Front Matter？</strong><br>它是位于 Markdown 文件顶部的配置区块，用于定义文章的元数据（如标题、日期）。这些变量可以在渲染时被模板读取，从而控制页面的布局、URL 和行为。</p>
+                                        <p class="mb-1.5"><strong>GitHub Pages 兼容性</strong><br>完全兼容 GitHub Pages (Jekyll) 及 Hugo、Hexo、VuePress 等主流静态站点生成器，同时兼容 Obsidian、Logseq、Foam 等双链笔记软件的 FM 格式，存量笔记导入无需修改。</p>
+                                        <p><strong>示例</strong></p>
+                                    </div>
+                                    <div class="mt-3 p-2 bg-gray-50 rounded border border-gray-200">
+                                        <pre class="text-[10px] text-gray-700 overflow-x-auto"><code>---
+layout: post
+title: "Markdown 编辑器指南"
+date: 2026-07-11 14:30:00 +0800
+categories:
+  - 教程
+  - 工具
+tags: [Markdown, Jekyll, Front Matter]
+draft: false
+comments: true
+cover: /assets/images/cover.jpg
+---
+
+# 这里是正文标题
+
+从这里开始编写你的 Markdown 内容...</code></pre>
+                                    </div>
+
+                                    <p class="text-[10px] text-gray-400 mt-2 italic">提示：修改 Front Matter 后请手动保存，确保配置生效。</p>
+                                </div>
+                            </div>
+
+                            <i x-show="!isMarkdownType(currentFile.id)" class="fas fa-code text-gray-400 text-xs flex-shrink-0"></i>
+                        </div>
+                    </template>
+
+                    <span x-show="currentFile" class="text-xs text-gray-500 font-medium truncate ml-2 leading-none" x-text="formatPath(currentFile?.id || '')"></span>
+                    <button
+                            x-show="currentFile"
+                            @click="copyPath()"
+                            class="flex-shrink-0 p-1 ml-2 rounded text-gray-400 hover:text-blue-500 hover:bg-blue-50 transition-colors duration-150"
+                            title="复制路径"
+                    ><i class="fas fa-copy text-xs"></i></button>
+
+                    <template x-if="currentFile">
+                        <button @click="closeCurrentFileAndDeselect()"
+                                class="text-[10px] text-gray-400 hover:text-red-500 flex-shrink-0 ml-auto p-1 rounded hover:bg-gray-100 transition-colors duration-150"
+                                title="关闭文档">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </template>
+                    <template x-if="!currentFile">
+                        <div class="flex items-center h-5 w-full text-gray-400 select-none">
+                            <i class="fas fa-code text-xs flex-shrink-0"></i>
+                            <span class="text-xs font-medium ml-2 leading-none truncate">...</span>
+                            <span class="ml-auto text-[10px] text-gray-400 flex-shrink-0">Edit</span>
+                        </div>
+                    </template>
+                </div>
+                <div class="flex-1 overflow-hidden bg-white">
+                    <textarea
+                            x-ref="editor"
+                            x-model="editorContent"
+                            class="editor w-full h-full bg-white text-gray-800 p-6 resize-none focus:outline-none placeholder-gray-300"
+                            placeholder="在这里输入内容..."
+                            spellcheck="false"
+                    ></textarea>
+                </div>
+            </div>
+
+            <!-- =======================
+                 预览区（条件展开 · 无动画）
+                 ======================= -->
+            <div class="flex flex-col min-w-0 h-full border-l border-gray-200 bg-white"
+                 :class="viewMode === 'split' ? 'w-1/2' : 'w-0 overflow-hidden pointer-events-none'">
+                <div class="h-11 bg-gray-50 border-b border-gray-200 flex items-center px-4">
+                    <i class="fas fa-eye text-gray-400 mr-2 text-xs"></i>
+                    <span class="text-xs text-gray-500 font-medium">实时预览</span>
+                    <div class="flex-1"></div>
+                    <span class="text-[10px] text-gray-300">Live Preview</span>
+                </div>
+                <div class="flex-1 overflow-hidden">
+                    <iframe x-ref="previewFrame"
+                            src="/notebook/static/render.html"
+                            class="w-full h-full border-none"
+                            sandbox="allow-scripts allow-same-origin">
+                    </iframe>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- ============================
+     [MODAL] 搜索弹窗
+     ============================ -->
+<template x-teleport="body">
+    <div x-show="showSearch" x-cloak @keydown.escape.window="showSearch = false" class="fixed inset-0 z-[var(--z-normal-modal)] overflow-y-auto">
+        <div class="fixed inset-0 bg-gray-900/30 backdrop-blur-sm" @click="showSearch = false"></div>
+        <div class="flex min-h-full items-start justify-center pt-24 p-4">
+            <div x-show="showSearch" x-transition class="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-gray-100" @click.stop>
+                <div class="flex items-center border-b border-gray-100 px-4">
+                    <i class="fas fa-search text-gray-300"></i>
+                    <input type="text" placeholder="搜索笔记... (Ctrl+K)" class="w-full bg-transparent border-none text-gray-800 px-3 py-4 focus:outline-none text-sm placeholder-gray-300" x-ref="searchInput" @keydown.enter="doSearch()">
+                    <kbd class="hidden sm:inline-flex items-center px-2 py-1 bg-gray-100 rounded text-[10px] text-gray-400 font-mono">ESC</kbd>
+                </div>
+                <div class="p-2 max-h-64 overflow-y-auto">
+                    <div class="px-3 py-1.5 text-[11px] text-gray-400 font-bold uppercase tracking-wider">最近搜索</div>
+                    <div class="px-3 py-2 hover:bg-blue-50 rounded-lg cursor-pointer text-sm text-gray-700 transition-colors flex items-center">
+                        <i class="fas fa-clock text-gray-300 mr-2 text-xs"></i>API 设计文档
+                    </div>
+                    <div class="px-3 py-2 hover:bg-blue-50 rounded-lg cursor-pointer text-sm text-gray-700 transition-colors flex items-center">
+                        <i class="fas fa-clock text-gray-300 mr-2 text-xs"></i>项目会议纪要
+                    </div>
+                    <div class="px-3 py-2 hover:bg-blue-50 rounded-lg cursor-pointer text-sm text-gray-700 transition-colors flex items-center">
+                        <i class="fas fa-clock text-gray-300 mr-2 text-xs"></i>Go 并发编程笔记
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</template>
+
+<!-- ============================
+     [TOAST] 堆叠通知
+     ============================ -->
+<template x-teleport="body">
+    <div class="fixed top-5 left-1/2 -translate-x-1/2 z-[var(--z-toast)] flex flex-col gap-2 pointer-events-none items-center">
+        <template x-for="toast in toasts" :key="toast.id">
+            <div
+                    x-show="toast.show"
+                    x-transition:enter="transition ease-out duration-300"
+                    x-transition:enter-start="opacity-0 translate-y-2"
+                    x-transition:enter-end="opacity-100 translate-y-0"
+                    x-transition:leave="transition ease-in duration-300"
+                    x-transition:leave-start="opacity-100 translate-y-0"
+                    x-transition:leave-end="opacity-0 translate-y-2"
+                    @click="toast.show = false"
+                    class="pointer-events-auto max-w-sm w-full rounded-xl p-4 shadow-lg cursor-pointer text-white"
+                    :class="{
+                    'bg-emerald-500': toast.type === 'success',
+                    'bg-red-500': toast.type === 'error',
+                    'bg-blue-500': toast.type === 'info'
+                }"
+            >
+                <div class="flex items-center">
+                    <i :class="{
+                        'fas fa-check-circle': toast.type === 'success',
+                        'fas fa-exclamation-circle': toast.type === 'error',
+                        'fas fa-info-circle': toast.type === 'info'
+                    }" class="text-lg mr-3 flex-shrink-0"></i>
+                    <p class="text-sm font-medium" x-text="toast.message"></p>
+                </div>
+            </div>
+        </template>
+    </div>
+</template>
+
+<!-- ============================
+     [CONFIRM] 通用确认弹窗
+     ============================ -->
+<template x-teleport="body">
+    <div x-show="confirmDialog.show" x-cloak class="fixed inset-0 z-[var(--z-normal-modal)] overflow-y-auto">
+        <div x-show="confirmDialog.show" x-transition class="fixed inset-0 bg-black/40 backdrop-blur-sm" @click="confirmDialog.onCancel()"></div>
+        <div class="flex min-h-full items-center justify-center p-4">
+            <div x-show="confirmDialog.show" x-transition class="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6" @click.stop>
+                <div class="w-14 h-14 rounded-full mx-auto mb-4 flex items-center justify-center" :class="{ 'bg-red-50': confirmDialog.type === 'danger', 'bg-amber-50': confirmDialog.type === 'warning', 'bg-blue-50': confirmDialog.type === 'info' }">
+                    <i class="text-xl" :class="{ 'fas fa-exclamation-triangle text-red-500': confirmDialog.type === 'danger', 'fas fa-exclamation-circle text-amber-500': confirmDialog.type === 'warning', 'fas fa-info-circle text-blue-500': confirmDialog.type === 'info' }"></i>
+                </div>
+                <h3 class="text-lg font-bold text-gray-800 text-center mb-2" x-text="confirmDialog.title"></h3>
+                <p class="text-sm text-gray-500 text-center mb-6" x-text="confirmDialog.message"></p>
+                <div class="flex space-x-3">
+                    <button @click="confirmDialog.onConfirm()" class="flex-1 py-2.5 px-4 rounded-lg text-white font-medium text-sm transition-colors" :class="{ 'bg-red-500 hover:bg-red-600': confirmDialog.type === 'danger', 'bg-amber-500 hover:bg-amber-600': confirmDialog.type === 'warning', 'bg-blue-500 hover:bg-blue-600': confirmDialog.type === 'info' }" x-text="confirmDialog.confirmText"></button>
+                    <button @click="confirmDialog.onCancel()" class="flex-1 py-2.5 px-4 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors font-medium text-sm" x-text="confirmDialog.cancelText"></button>
+                </div>
+            </div>
+        </div>
+    </div>
+</template>
+
+<!-- ============================
+     [PROMPT] 自定义输入弹窗
+     ============================ -->
+<template x-teleport="body">
+    <div x-show="promptDialog.show" x-cloak class="fixed inset-0 z-[var(--z-normal-modal)] overflow-y-auto">
+        <div x-show="promptDialog.show" x-transition class="fixed inset-0 bg-black/40 backdrop-blur-sm" @click="promptDialog.onCancel()"></div>
+        <div class="flex min-h-full items-center justify-center p-4">
+            <div x-show="promptDialog.show" x-transition class="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6" @click.stop>
+                <div class="w-14 h-14 rounded-full mx-auto mb-4 flex items-center justify-center bg-blue-50">
+                    <i :class="promptDialog.icon || 'fas fa-edit'" class="text-xl text-blue-500"></i>
+                </div>
+                <h3 class="text-lg font-bold text-gray-800 text-center mb-2" x-text="promptDialog.title"></h3>
+                <p class="text-sm text-gray-500 text-center mb-4" x-text="promptDialog.message"></p>
+                <input
+                        type="text"
+                        x-ref="promptInput"
+                        x-model="promptDialog.value"
+                        @keydown.enter="promptDialog.onConfirm()"
+                        class="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-6"
+                        :placeholder="promptDialog.placeholder"
+                >
+                <div class="flex space-x-3">
+                    <button @click="promptDialog.onConfirm()" class="flex-1 py-2.5 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium text-sm transition-colors">确认</button>
+                    <button @click="promptDialog.onCancel()" class="flex-1 py-2.5 px-4 border border-gray-200 text-gray-600 hover:bg-gray-50 rounded-lg font-medium text-sm transition-colors">取消</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</template>
+
+<!-- ============================
+     [HISTORY] 文件历史弹窗
+     ============================ -->
+<template x-teleport="body">
+    <div x-show="historyDialog.show" x-cloak class="fixed inset-0 z-[var(--z-history)] overflow-y-auto">
+        <div x-show="historyDialog.show" x-transition class="fixed inset-0 bg-black/50 backdrop-blur-sm" @click="closeHistory()"></div>
+        <div class="flex min-h-full items-center justify-center p-4">
+            <div x-show="historyDialog.show" x-transition class="relative bg-white rounded-2xl shadow-2xl w-full max-w-6xl h-[80vh] flex flex-col overflow-hidden" @click.stop>
+                <!-- 标题栏 -->
+                <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+                    <div class="flex items-center space-x-3">
+                        <!-- 图标容器：紫 → 蓝 -->
+                        <div class="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
+                            <i class="fas fa-history text-blue-500"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold text-gray-800">历史版本</h3>
+                            <p class="text-xs text-gray-400 truncate max-w-xs" x-text="historyDialog.filePath"></p>
+                        </div>
+                    </div>
+                    <button @click="closeHistory()" class="p-2 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+
+                <!-- 1:3 分栏主体 -->
+                <div class="flex flex-1 overflow-hidden">
+                    <!-- 左侧：历史列表 -->
+                    <div class="w-1/4 border-r border-gray-100 flex flex-col bg-gray-50/50">
+                        <div class="h-12 px-4 border-b border-gray-100 flex items-center justify-between">
+                            <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">版本列表</span>
+                            <span x-show="historyDialog.loading" class="loading-spinner"></span>
+                        </div>
+
+                        <div class="flex-1 overflow-y-auto p-2 space-y-1">
+                            <template x-for="item in historyDialog.historyList" :key="item.version">
+                                <button
+                                        @click="selectHistoryItem(item)"
+                                        class="w-full text-left px-3 py-2.5 rounded-lg transition-colors border"
+                                        :class="historyDialog.selectedItem?.version === item.version
+                                        ? 'bg-blue-50 border-blue-200'
+                                        : 'hover:bg-gray-100 border-transparent'"
+                                >
+                                    <div class="flex items-center justify-between mb-1">
+                                        <span class="text-xs font-mono text-blue-600 font-medium" x-text="'v' + item.version"></span>
+                                        <span class="text-xs text-gray-400" x-text="item.create_time"></span>
+                                    </div>
+                                    <div class="flex justify-end">
+                                        <span class="text-xs text-gray-500" x-text="item.lines + ' 行改动'"></span>
+                                    </div>
+                                </button>
+                            </template>
+
+                            <div x-show="historyDialog.historyList.length === 0 && !historyDialog.loading"
+                                 class="px-3 py-4 text-xs text-gray-400 text-center">
+                                暂无历史版本
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 右侧：Diff 预览 -->
+                    <div class="w-3/4 flex flex-col bg-white">
+                        <div class="h-12 px-4 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
+                            <div class="flex items-center space-x-2">
+                                <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">差异对比</span>
+                                <span x-show="historyDialog.selectedItem"
+                                      class="text-xs text-gray-400"
+                                      x-text="'v' + historyDialog.selectedItem?.version"></span>
+                            </div>
+
+                            <!-- 恢复按钮 -->
+                            <div class="h-12 w-32 flex-shrink-0 flex items-center justify-end">
+                                <button
+                                        x-show="historyDialog.selectedItem"
+                                        @click="revertHistory()"
+                                        :disabled="historyDialog.diffLoading"
+                                        class="flex items-center space-x-1.5 px-3 py-1.5
+                                           bg-blue-500 hover:bg-blue-600
+                                           disabled:opacity-50 text-white
+                                           text-xs font-medium rounded-lg
+                                           transition-opacity duration-200"
+                                        :class="historyDialog.selectedItem ? 'opacity-100' : 'opacity-0 pointer-events-none'"
+                                >
+                                    <i class="fas fa-undo"></i>
+                                    <span>恢复此版本</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="flex-1 overflow-y-auto p-4 bg-gray-50/30">
+                            <div x-html="historyDialog.diffHtml"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</template>
+<!-- ============================
+     [SHARE] 链接分享弹窗
+     ============================ -->
+<template x-teleport="body">
+    <div x-show="shareDialog.show" x-cloak class="fixed inset-0 z-[var(--z-modal-share)] overflow-y-auto">
+        <div x-show="shareDialog.show" x-transition class="fixed inset-0 bg-black/50 backdrop-blur-sm" @click="closeShareDialog()"></div>
+        <div class="flex min-h-full items-center justify-center p-4">
+            <div x-show="shareDialog.show" x-transition class="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden" @click.stop>
+                <!-- 标题栏 -->
+                <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
+                            <i class="fas fa-share-alt text-blue-500"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold text-gray-800">链接分享</h3>
+                            <p class="text-xs text-gray-400 truncate max-w-xs" x-text="shareDialog.filename"></p>
+                        </div>
+                    </div>
+                    <button @click="closeShareDialog()" class="p-2 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <!-- 内容区（永远存在，永不卸载） -->
+                <div class="p-6 relative min-h-[240px]">
+                    <!-- ✅ Loading 遮罩 -->
+                    <div x-show="shareDialog.loading"
+                         x-transition.opacity.duration.200
+                         class="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-10"
+                         style="pointer-events: auto;">
+                        <div class="flex items-center space-x-3 text-gray-500">
+                            <div class="loading-spinner"></div>
+                            <span>正在处理...</span>
+                        </div>
+                    </div>
+
+                    <!-- ✅ Error 遮罩 -->
+                    <div x-show="shareDialog.error"
+                         x-transition.opacity.duration.200
+                         class="absolute inset-0 bg-white/90 flex flex-col items-center justify-center z-10"
+                         style="pointer-events: auto;">
+                        <div class="w-14 h-14 rounded-full bg-red-50 flex items-center justify-center mb-4">
+                            <i class="fas fa-exclamation-triangle text-red-500 text-xl"></i>
+                        </div>
+                        <p class="text-red-500" x-text="shareDialog.error"></p>
+                    </div>
+
+                    <!-- ✅ 正常内容（永远渲染，永不 x-show） -->
+                    <div :class="shareDialog.loading || shareDialog.error ? 'opacity-60 pointer-events-none' : 'opacity-100'"
+                         class="transition-opacity duration-200">
+
+                        <!-- 状态指示器 -->
+                        <div class="flex items-center justify-between mb-6 pb-6 border-b border-gray-100">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-10 h-10 rounded-full flex items-center justify-center"
+                                     :class="shareDialog.isShared ? 'bg-green-50' : 'bg-gray-100'">
+                                    <i class="fas"
+                                       :class="shareDialog.isShared ? 'fa-check text-green-500' : 'fa-times text-gray-400'"></i>
+                                </div>
+                                <div>
+                                    <p class="font-medium text-gray-800" x-text="shareDialog.isShared ? '已开启分享' : '未开启分享'"></p>
+                                    <p class="text-xs text-gray-500" x-text="shareDialog.isShared ? '任何人通过链接均可访问' : '仅你自己可见'"></p>
+                                </div>
+                            </div>
+                            <button
+                                    @click="toggleShare()"
+                                    :disabled="shareDialog.loading"
+                                    class="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                                    :class="shareDialog.isShared ? 'bg-red-50 text-red-500 hover:bg-red-100' : 'bg-blue-500 text-white hover:bg-blue-600'">
+                                <i class="fas mr-2" :class="shareDialog.isShared ? 'fa-ban' : 'fa-share-alt'"></i>
+                                <span x-text="shareDialog.isShared ? '关闭分享' : '开启分享'"></span>
+                            </button>
+                        </div>
+
+                        <!-- ✅ 分享链接区域（永远存在） -->
+                        <div class="transition-opacity duration-200"
+                             :style="shareDialog.isShared ? 'opacity: 1; pointer-events: auto;' : 'opacity: 0.55; pointer-events: none;'">
+
+                            <label class="block text-sm font-medium text-gray-700 mb-2">分享链接</label>
+
+                            <div class="relative">
+                                <div class="flex items-center space-x-2">
+                                    <input type="text" readonly
+                                           :value="shareDialog.isShared ? location.origin + shareDialog.shareUrl : '开启分享后即可生成链接'"
+                                           class="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-600 focus:outline-none truncate"
+                                           tabindex="-1">
+                                    <button @click="copyShareLink()"
+                                            :disabled="!shareDialog.isShared"
+                                            class="px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex-shrink-0"
+                                            :class="shareDialog.isShared ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-gray-200 text-gray-400 cursor-not-allowed'">
+                                        <i class="fas fa-copy mr-2"></i>复制
+                                    </button>
+                                    <button @click="viewSharePage()"
+                                            :disabled="!shareDialog.isShared"
+                                            class="px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex-shrink-0"
+                                            :class="shareDialog.isShared ? 'bg-gray-100 hover:bg-gray-200 text-gray-700' : 'bg-gray-100 text-gray-400 cursor-not-allowed'">
+                                        <i class="fas fa-external-link-alt mr-2"></i>打开
+                                    </button>
+                                </div>
+
+                                <!-- 未开启时的遮罩 -->
+                                <div x-show="!shareDialog.isShared"
+                                     class="absolute inset-0 flex items-center justify-center bg-white/70 backdrop-blur-[2px] rounded-lg pointer-events-none">
+                                    <div class="flex items-center space-x-2 text-gray-400 text-sm">
+                                        <i class="fas fa-lock"></i>
+                                        <span>分享未开启</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <p class="mt-3 text-xs text-gray-500 flex items-center">
+                                <i class="fas fa-info-circle mr-2"></i>
+                                <span x-text="shareDialog.isShared ? '任何拥有此链接的人都可以查看该文件。' : '点击“开启分享”后，即可复制和访问分享链接。'"></span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</template>
+<!-- ============================
+     [MODAL] 修改密码弹窗（核心修复：x-if替代x-show）
+     ============================ -->
+<template x-teleport="body">
+    <!-- ✅ 用x-if控制整个弹窗的挂载/卸载，关闭时DOM完全销毁 -->
+    <template x-if="showChangePwdModal">
+        <div class="fixed inset-0 z-[var(--z-overlay)] overflow-y-auto" x-cloak>
+            <!-- 遮罩：移除x-show，由父级x-if控制 -->
+            <div
+                    x-transition:enter="transition ease-out duration-200"
+                    x-transition:enter-start="opacity-0"
+                    x-transition:enter-end="opacity-100"
+                    x-transition:leave="transition ease-in duration-150"
+                    x-transition:leave-start="opacity-100"
+                    x-transition:leave-end="opacity-0"
+                    class="fixed inset-0 bg-black/50 backdrop-blur-sm"
+                    @click="closeChangePwdModal()"
+            ></div>
+
+            <!-- 弹窗主体：移除x-show，由父级x-if控制 -->
+            <div class="flex min-h-full items-center justify-center p-4">
+                <div
+                        x-transition:enter="transition ease-out duration-200"
+                        x-transition:enter-start="opacity-0 scale-95"
+                        x-transition:enter-end="opacity-100 scale-100"
+                        x-transition:leave="transition ease-in duration-150"
+                        x-transition:leave-start="opacity-100 scale-100"
+                        x-transition:leave-end="opacity-0 scale-95"
+                        class="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+                        @click.stop
+                        @keydown.escape="closeChangePwdModal()"
+                >
+                    <!-- 标题栏 -->
+                    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
+                                <i class="fas fa-key text-blue-500"></i>
+                            </div>
+                            <h3 class="text-lg font-bold text-gray-800">修改密码</h3>
+                        </div>
+                        <button @click="closeChangePwdModal()" class="p-2 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+
+                    <!-- 表单内容 -->
+                    <div class="p-6 space-y-5">
+                        <!-- 旧密码 -->
+                        <div>
+                            <label for="old-pwd" class="sr-only">旧密码</label>
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <i class="fas fa-lock text-gray-400"></i>
+                                </div>
+                                <input
+                                        id="old-pwd"
+                                        :type="changePwdForm.showOldPwd ? 'text' : 'password'"
+                                        x-model="changePwdForm.oldPwd"
+                                        required
+                                        minlength="5"
+                                        maxlength="32"
+                                        class="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
+                                        autocomplete="current-password"
+                                        data-lpignore="true"
+                                        placeholder="请输入旧密码"
+                                >
+                                <button
+                                        type="button"
+                                        @click="changePwdForm.showOldPwd = !changePwdForm.showOldPwd"
+                                        class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                                >
+                                    <i :class="changePwdForm.showOldPwd ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 新密码 -->
+                        <div>
+                            <label for="new-pwd" class="sr-only">新密码</label>
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <i class="fas fa-lock text-gray-400"></i>
+                                </div>
+                                <input
+                                        id="new-pwd"
+                                        :type="changePwdForm.showNewPwd ? 'text' : 'password'"
+                                        x-model="changePwdForm.newPwd"
+                                        required
+                                        minlength="5"
+                                        maxlength="32"
+                                        class="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
+                                        autocomplete="new-password"
+                                        data-lpignore="true"
+                                        placeholder="请输入新密码（5-32位）"
+                                >
+                                <button
+                                        type="button"
+                                        @click="changePwdForm.showNewPwd = !changePwdForm.showNewPwd"
+                                        class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                                >
+                                    <i :class="changePwdForm.showNewPwd ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 确认新密码 -->
+                        <div>
+                            <label for="confirm-pwd" class="sr-only">确认新密码</label>
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <i class="fas fa-lock text-gray-400"></i>
+                                </div>
+                                <input
+                                        id="confirm-pwd"
+                                        :type="changePwdForm.showNewPwd ? 'text' : 'password'"
+                                        x-model="changePwdForm.confirmPwd"
+                                        required
+                                        minlength="5"
+                                        maxlength="32"
+                                        class="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
+                                        autocomplete="new-password"
+                                        data-lpignore="true"
+                                        placeholder="请再次输入新密码"
+                                >
+                            </div>
+                            <!-- 前端简单校验提示 -->
+                            <p x-show="changePwdForm.newPwd && changePwdForm.confirmPwd && changePwdForm.newPwd !== changePwdForm.confirmPwd" class="mt-1 text-xs text-red-500">
+                                两次输入的密码不一致
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- 底部按钮 -->
+                    <div class="px-6 py-4 border-t border-gray-100 flex justify-end space-x-3">
+                        <button @click="closeChangePwdModal()" class="px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
+                            取消
+                        </button>
+                        <button
+                                @click="submitChangePwd()"
+                                :disabled="changePwdForm.loading || !changePwdForm.oldPwd || !changePwdForm.newPwd || changePwdForm.newPwd !== changePwdForm.confirmPwd || changePwdForm.newPwd.length < 5"
+                                class="px-5 py-2.5 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center min-w-[100px]"
+                        >
+                            <span x-show="!changePwdForm.loading">确认修改</span>
+                            <span x-show="changePwdForm.loading" class="flex items-center">
+                                <i class="fas fa-spinner fa-spin mr-2"></i>
+                                处理中...
+                            </span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </template>
+</template>
+<!-- ============================
+     [MODAL] 关于弹窗
+     ============================ -->
+<template x-teleport="body">
+    <div x-show="showAboutModal" x-cloak class="fixed inset-0 z-[var(--z-overlay)] overflow-y-auto">
+        <!-- 遮罩 -->
+        <div x-show="showAboutModal" x-transition class="fixed inset-0 bg-black/50 backdrop-blur-sm" @click="closeAboutModal()"></div>
+
+        <!-- 弹窗主体 -->
+        <div class="flex min-h-full items-center justify-center p-4">
+            <div x-show="showAboutModal" x-transition class="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden" @click.stop @keydown.escape="closeAboutModal()">
+                <!-- 标题栏 -->
+                <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-cyan-400 flex items-center justify-center">
+                            <i class="fas fa-info-circle text-white w-4"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-800">关于</h3>
+                    </div>
+                    <button @click="closeAboutModal()" class="p-2 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+
+                <!-- 内容区 -->
+                <div class="p-6 space-y-5">
+                    <!-- 基本信息 -->
+                    <div class="flex flex-col items-center py-2">
+                        <div class="w-14 h-14 mb-3 flex items-center justify-center">
+                            <i class="fa-solid fa-scroll text-3xl"></i>
+                        </div>
+                        <div class="flex items-center justify-center">
+                            <span class="font-bold text-gray-800 text-sm tracking-wide">流年笺</span>
+                        </div>
+                    </div>
+                    <!-- 开源信息 - 统一卡片样式和间距 -->
+                    <div class="bg-gray-50 rounded-xl p-4 border border-gray-100 space-y-3">
+                        <p class="text-sm text-gray-700 leading-relaxed">
+                            这是一个开源、轻量但功能强大的云笔记本，支持文章分享、静态站点生成、底层存储分离。许可证范围内可自由修改、分发。
+                        </p>
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-gray-600">开源地址：</span>
+                            <a href="https://github.com/cl-ei/notebook.madliar" target="_blank" rel="noopener noreferrer" class="text-sm text-blue-500 hover:underline flex items-center">
+                                GitHub 仓库
+                                <i class="fas fa-external-link-alt ml-1 text-xs"></i>
+                            </a>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-gray-600">许可证：</span>
+                            <span class="text-sm text-gray-700">MIT License</span>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                        <h5 class="text-sm font-medium text-center text-gray-700 mb-3">核心技术栈</h5>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="inline-flex items-center px-2.5 py-1 bg-gray-100 text-gray-700 text-xs rounded-full border border-gray-200">
+                                <i class="fa-brands fa-python mr-1.5"></i>Python 3.13+
+                            </span>
+                            <span class="inline-flex items-center px-2.5 py-1 bg-gray-100 text-gray-700 text-xs rounded-full border border-gray-200">
+                                <i class="fa-solid fa-bolt mr-1.5"></i>FastAPI
+                            </span>
+                            <span class="inline-flex items-center px-2.5 py-1 bg-gray-100 text-gray-700 text-xs rounded-full border border-gray-200">
+                                <i class="fa-solid fa-mountain mr-1.5"></i>Alpine.js
+                            </span>
+                            <span class="inline-flex items-center px-2.5 py-1 bg-gray-100 text-gray-700 text-xs rounded-full border border-gray-200">
+                                <i class="fa-solid fa-wind mr-1.5"></i>Tailwind CSS
+                            </span>
+                            <span class="inline-flex items-center px-2.5 py-1 bg-gray-100 text-gray-700 text-xs rounded-full border border-gray-200">
+                                <i class="fa-solid fa-code mr-1.5"></i>Marked.js
+                            </span>
+                            <span class="inline-flex items-center px-2.5 py-1 bg-gray-100 text-gray-700 text-xs rounded-full border border-gray-200">
+                                <i class="fa-solid fa-shield-halved mr-1.5"></i>DOMPurify
+                            </span>
+                            <span class="inline-flex items-center px-2.5 py-1 bg-gray-100 text-gray-700 text-xs rounded-full border border-gray-200">
+                                diff-match-patch
+                            </span>
+                            <span class="inline-flex items-center px-2.5 py-1 bg-gray-100 text-gray-700 text-xs rounded-full border border-gray-200">
+                                <i class="fa-brands fa-font-awesome mr-1.5"></i>Font Awesome
+                            </span>
+                        </div>
+                    </div>
+                    <!-- ============================
+                         字体致谢模块 - 统一卡片样式
+                         ============================ -->
+                    <section class="about-section">
+                        <div x-data="{ fontOpen: false }" class="border border-gray-100 rounded-xl overflow-hidden bg-white">
+                            <!-- 头部：可点击展开/收起 -->
+                            <button
+                                    @click="fontOpen = !fontOpen"
+                                    class="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
+                            >
+                                <div class="flex items-center space-x-3">
+                                    <i class="fas fa-font text-blue-500"></i>
+                                    <h3 class="text-base font-semibold text-gray-800">所用字体</h3>
+                                    <span class="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">全离线</span>
+                                </div>
+                                <i :class="fontOpen ? 'fas fa-chevron-up' : 'fas fa-chevron-down'" class="text-gray-400 text-sm transition-transform"></i>
+                            </button>
+
+                            <!-- 展开内容 -->
+                            <div x-show="fontOpen" x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0 h-0" x-transition:enter-end="opacity-100 h-auto" x-transition:leave="transition ease-in duration-100" x-transition:leave-start="opacity-100 h-auto" x-transition:leave-end="opacity-0 h-0" class="border-t border-gray-100">
+                                <div class="p-4 space-y-4">
+                                    <!-- 说明文字 -->
+                                    <p class="text-sm text-gray-600 leading-relaxed">
+                                        本项目UI西文采用Rasmus Andersson设计的Inter，代码区采用JetBrains推出的JetBrains Mono。
+                                        <strong>特别致谢LXGW开源组基于Klee One扩充开发的霞鹜文楷，为中文正文阅读提供了兼具人文温度与屏幕可读性的优质选择。</strong>
+                                        所有字体均遵循SIL Open Font License协议。
+                                    </p>
+
+                                    <!-- 字体列表：每个字体一个卡片 -->
+                                    <div class="space-y-3">
+                                        <!-- 1. Inter（UI西文） -->
+                                        <div class="p-3 bg-gray-50 rounded-lg border border-gray-100">
+                                            <div class="flex items-center justify-between mb-2">
+                                                <div class="flex items-center space-x-2">
+                                                    <span class="font-medium text-gray-800" style="font-family: 'Inter', sans-serif;">Inter</span>
+                                                    <span class="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full">UI 西文</span>
+                                                </div>
+                                                <span class="text-xs text-gray-500">400/500/600/700</span>
+                                            </div>
+                                            <div class="text-sm" style="font-family: 'Inter', sans-serif; font-weight: 400;">
+                                                ABCDEFGHIJKLMNOPQRSTUVWXYZ · abcdefghijklmnopqrstuvwxyz · 0123456789 · 笔记 / Front Matter / 发布
+                                            </div>
+                                        </div>
+
+                                        <!-- 2. 霞鹜文楷（中文正文） -->
+                                        <div class="p-3 bg-gray-50 rounded-lg border border-gray-100">
+                                            <div class="flex items-center justify-between mb-2">
+                                                <div class="flex items-center space-x-2">
+                                                    <span class="font-medium text-gray-800" style="font-family: 'LXGW WenKai', serif;">霞鹜文楷</span>
+                                                    <span class="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs rounded-full">中文正文</span>
+                                                </div>
+                                                <span class="text-xs text-gray-500">400</span>
+                                            </div>
+                                            <div class="text-sm" style="font-family: 'LXGW WenKai', serif; font-weight: 400; line-height: 1.7;">
+                                                春江潮水连海平，海上明月共潮生。滟滟随波千万里，何处春江无月明！· 这是一段中文笔记正文示例，展示字体的实际渲染效果。
+                                            </div>
+                                        </div>
+
+                                        <!-- 3. JetBrains Mono（代码等宽） -->
+                                        <div class="p-3 bg-gray-50 rounded-lg border border-gray-100">
+                                            <div class="flex items-center justify-between mb-2">
+                                                <div class="flex items-center space-x-2">
+                                                    <span class="font-medium text-gray-800" style="font-family: 'JetBrains Mono', monospace;">JetBrains Mono</span>
+                                                    <span class="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full">代码等宽</span>
+                                                </div>
+                                                <span class="text-xs text-gray-500">400/500</span>
+                                            </div>
+                                            <div class="text-sm" style="font-family: 'JetBrains Mono', monospace; font-weight: 400;">
+                                                <span class="text-gray-500">// Front Matter 示例</span><br>
+                                                ---<br>
+                                                title: "字体说明"<br>
+                                                date: 2026-07-12<br>
+                                                tags: [Inter, 霞鹜文楷, JetBrains Mono]
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- 版权信息 - 调整间距和样式 -->
+                    <div class="pt-2">
+                        <p class="text-xs text-gray-400 text-center"
+                           x-init="this.aboutYear = new Date().getFullYear()"
+                           x-text="`© ${aboutYear} 流年笺 · 保留所有权利`">
+                        </p>
+                    </div>
+                </div>
+
+                <!-- 底部按钮 -->
+                <div class="px-6 py-4 border-t border-gray-100 flex justify-center">
+                    <button @click="closeAboutModal()" class="px-6 py-2.5 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors">
+                        我知道了
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</template>
+<!-- ============================
+     [MODAL] 发布博客（Material 蓝配色版）
+     ============================ -->
+<template x-teleport="body">
+    <div x-show="blogPublishModalOpen" x-cloak
+         @click.away="closeBlogPublishModal()"
+         @keydown.escape.window="closeBlogPublishModal()"
+         class="fixed inset-0 z-[var(--z-normal-modal)] overflow-y-auto">
+        <!-- 遮罩 -->
+        <div x-show="blogPublishModalOpen" x-transition.opacity class="fixed inset-0 bg-black/40 backdrop-blur-sm"></div>
+        <!-- 弹窗主体 -->
+        <div class="flex min-h-full items-center justify-center p-4">
+            <div x-show="blogPublishModalOpen" x-transition
+                 class="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+                <!-- 标题栏 -->
+                <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                    <div class="flex items-center space-x-3">
+                        <!-- ✅ 紫色purple-50 → 蓝色blue-50（Material Blue 50） -->
+                        <div class="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
+                            <!-- ✅ 紫色purple-500 → 蓝色blue-500（Material Blue 500，和你现有按钮主色一致） -->
+                            <i class="fas fa-rocket text-blue-500"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-800">发布博客</h3>
+                    </div>
+                    <button @click="closeBlogPublishModal()" class="p-2 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <!-- 内容区 -->
+                <div class="p-6 space-y-5">
+                    <!-- 版本信息 -->
+                    <div class="bg-gray-50 rounded-xl p-4">
+                        <div class="flex justify-between items-center mb-2">
+                            <h4 class="text-sm font-semibold text-gray-700">当前版本</h4>
+                            <span x-show="blogInfo.version" class="text-xs text-gray-400" x-text="'版本号: ' + blogInfo.version"></span>
+                        </div>
+                        <p class="text-sm text-gray-600" x-text="blogInfo.version ? '博客已发布，点击下方按钮查看或重新发布。' : '尚未发布过博客，点击发布将生成您的博客首页。'"></p>
+                    </div>
+                    <!-- 博客地址 -->
+                    <div>
+                        <label class="text-sm font-medium text-gray-700 block mb-2">博客首页地址</label>
+                        <div class="flex items-center space-x-2">
+                            <input type="text" readonly
+                                   :value="blogInfo.homepageUrl"
+                                   class="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-500 focus:outline-none"
+                                   placeholder="发布后生成地址">
+                            <button @click="window.open(blogInfo.homepageUrl, '_blank')"
+                                    :disabled="!blogInfo.homepageUrl"
+                                    class="px-5 py-2.5 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white text-sm font-medium rounded-xl transition-colors">
+                                打开主页
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <!-- 底部按钮 -->
+                <div class="px-6 py-4 border-t border-gray-100 flex justify-end space-x-3">
+                    <button @click="closeBlogPublishModal()"
+                            class="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-xl transition-colors">
+                        取消
+                    </button>
+                    <!-- ✅ 紫色purple-500/600 → 蓝色blue-600/700（Material Blue 600/700，和你现有蓝色按钮完全统一） -->
+                    <button @click="startBlogPublish()"
+                            :disabled="blogPublishLoading"
+                            class="flex items-center justify-center space-x-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl transition-colors disabled:opacity-70 disabled:cursor-not-allowed min-w-[100px]">
+                        <!-- 加载 Spinner -->
+                        <svg x-show="blogPublishLoading" class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span x-text="blogPublishLoading ? '发布中...' : '立即发布'"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</template>
+<!-- ============================
+     [OVERLAY] 全局阻塞遮罩
+     ============================ -->
+<template x-teleport="body">
+    <div x-show="overlay.show" x-cloak
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 z-[var(--z-overlay)] flex items-center justify-center bg-gray-900/50 backdrop-blur-sm">
+        <div class="flex flex-col items-center space-y-4 bg-white px-8 py-6 rounded-2xl shadow-2xl">
+            <div class="w-8 h-8 border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin"></div>
+            <p class="text-sm font-medium text-gray-700" x-text="overlay.message"></p>
+        </div>
+    </div>
+</template>
+
+<!-- ============================
+     [SCRIPT] 应用逻辑
+     ============================ -->
+<script defer>
+    document.addEventListener('alpine:init', () => {
+        marked.setOptions({
+            gfm: true,
+            breaks: true,
+            sanitize: false,
+            smartLists: true,
+            smartypants: true
+        });
+    });
+</script>
+<script>
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('notebookApp', () => ({
+            currentUserEmail: localStorage.getItem('notebook_user_email') || '',
+            username: '',
+            domain: '',
+
+            viewMode: 'split',
+            sidebarCollapsed: false,
+            showSearch: false,
+            currentFile: null,          // {id, base, version, baseContent, fmStatus, fmLog}
+            editorContent: '',
+            lastSavedContent: '',      // 脏检查锚点
+            lastCommitMd5: '',         // 防重复提交
+            isSaving: false,           // 保存锁
+
+            overlay: { show: false, message: '' },
+
+            previewReady: false,
+            syncTimer: null,
+
+            toasts: [],
+            toastIdCounter: 0,
+
+            confirmDialog: { show: false, title: '', message: '', confirmText: '确认', cancelText: '取消', type: 'danger', onConfirm: null, onCancel: null },
+            promptDialog: { show: false, title: '', message: '', placeholder: '', value: '', onConfirm: null, onCancel: null },
+            historyDialog: { show: false, filePath: '', historyList: [], selectedItem: null, selectedContent: null, loading: false, diffLoading: false, diffHtml: '' },
+            userMenu: false,
+            shareDialog: { show: false, loading: false, filepath: '', filename: '', isShared: false, shareUrl: '', error: '' },
+            showChangePwdModal: false,
+            showAboutModal: false,
+            changePwdForm: { oldPwd: '', newPwd: '', confirmPwd: '', showOldPwd: false, showNewPwd: false, loading: false },
+
+            fmBubbleOpen: false, // 控制FM气泡显示
+
+            // ============================
+            // [STATE] 博客发布，静态网页生成
+            // ============================
+            blogPublishModalOpen: false, // 控制弹窗显示
+            blogPublishLoading: false,   // 控制发布按钮的loading状态
+            blogPollingTimer: null,      // 轮询的定时器ID
+            blogPollingVersion: null,    // 本次发布任务的版本号（关键：用于比对）
+            blogInfo: {                  // 博客信息
+                version: null,
+                homepageUrl: ''
+            },
+            init() {
+                try {
+                    const email = this.currentUserEmail;
+                    const [username, domain] = email.split('@');
+                    this.username = username;
+                    this.domain = domain;
+                } catch (e) {
+                    this.showToast('用户信息有误，请重新登录', 'error');
+                    return;
+                }
+
+                window.addEventListener('message', (event) => {
+                    if (event.data?.type === 'IFRAME_READY') {
+                        this.previewReady = true;
+                    }
+                });
+
+                document.addEventListener('keydown', (e) => {
+                    // Ctrl+K 搜索
+                    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                        e.preventDefault();
+                        this.showSearch = !this.showSearch;
+                        if (this.showSearch) this.$nextTick(() => this.$refs.searchInput?.focus());
+                    }
+                    // Ctrl+S 保存
+                    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                        e.preventDefault();
+                        this.saveFile();
+                    }
+                });
+
+                // ===== 页面卸载前检查未保存内容 =====
+                window.addEventListener('beforeunload', (e) => {
+                    // 脏检查
+                    if (this.notebook__hasUnSavedChanges()) {
+                        e.preventDefault();
+                        e.returnValue = '';
+                        return '';
+                    }
+                });
+
+                // 监听来自 iframe 的消息
+                window.addEventListener('message', (event) => {
+                    // 安全校验：只处理来自我们 iframe 的消息
+                    if (event.source !== this.$refs.previewFrame?.contentWindow) return;
+                    if (event.data.type === 'IFRAME_CLICK') {
+                        this.closeAllPopups();
+                    }
+                });
+
+                // 绑定内容变更事件，触发内容同步到 iframe
+                // 因为 _doSyncPreview 涉及 FM 的解析，其结果会影响 FM icon,
+                // 所以任何内容变更都应调用 _doSyncPreview
+                // 在 _doSyncPreview 内部对视图进行判断，处理生成逻辑和 iframe 消息的发送
+                const syncPreview = () => this._doSyncPreview();
+                this.$watch('viewMode', syncPreview);
+                this.$watch('editorContent', syncPreview);
+                this.$watch('previewReady', ready => ready && syncPreview());
+                this.$watch('currentFile', (newFile, oldFile) => {
+                        if (newFile?.id !== oldFile?.id) syncPreview()
+                    },
+                    { deep: true }
+                );
+            },
+
+            // ============================
+            // [API] Export API
+            // ============================
+            notebook__hasUnSavedChanges() {
+                return this.editorContent !== this.lastSavedContent && this.editorContent.trim() !== '';
+            },
+            notebook__changeFilePath(path) {
+                if (this.currentFile) {
+                    this.currentFile.id = path;
+                } else {
+                    this.currentFile = { id: path, base: null, version: null, baseContent: '' };
+                }
+            },
+            async notebook__ensureDiscardUnSavedContent() {
+                if (!this.notebook__hasUnSavedChanges()) return true;
+                return await this.showConfirm({
+                    title: '未保存的更改',
+                    message: '当前编辑内容尚未保存，打开其他文件将丢失未保存的更改。确定要继续吗？',
+                    confirmText: '放弃更改',
+                    cancelText: '取消',
+                    type: 'warning'
+                })
+            },
+            async notebook__openFile(path) {
+                const filename = path.replace(/\\/g, '/').split(/[?#]/)[0].split('/').pop() || '';
+                this.currentFile = { id: path, base: null, version: null, baseContent: '', fmStatus: null, fmLog: null }
+
+                if (isTextType(filename)) {
+                    // ---- 文本类：调 /notebook/open 接口 ----
+                    try {
+                        const res = await fetch('/notebook/open', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ filepath: path, version: null }),
+                            credentials: 'include',
+                        });
+                        const resp = await res.json();
+                        if (resp.code !== 0) throw new Error(resp.msg || '打开失败');
+
+                        const { version, base, base_content, diff } = resp.data;
+                        const fullContent = mergeContent(base_content, diff);
+
+                        this.editorContent = fullContent;
+                        this.lastSavedContent = fullContent;
+
+                        // 记录版本锚点
+                        this.currentFile.base = base;
+                        this.currentFile.version = version;
+                        this.currentFile.baseContent = base_content;
+                    } catch (e) {
+                        this.editorContent = `# 加载失败\n\n无法读取文件内容: ${filename}\n\n> 错误: ${e.message}`;
+                        this.lastSavedContent = this.editorContent;
+                        this.currentFile.base = null;
+                        this.currentFile.version = null;
+                        this.currentFile.baseContent = '';
+                    }
+                } else if (isImageType(filename)) {
+                    // ---- 图片类 ----
+                    this.editorContent = `![](${filename})`;
+                    this.lastSavedContent = this.editorContent;
+                } else {
+                    // ---- 其他文件 ----
+                    const encodedPath = encodeURIComponent(path);
+                    this.editorContent = `<a href="/notebook/raw_file?path=${encodedPath}" target="_blank">📎 点击下载/打开文件：${filename}</a>`;
+                    this.lastSavedContent = this.editorContent;
+                }
+            },
+            async notebook__openSharePage(path) {return await this.ctxOpenShareDialog(path); },
+            notebook__closeFile() {
+                // 强制关闭文档
+                this.currentFile = null;
+                this.editorContent = '';
+                this.lastSavedContent = '';
+                this.lastCommitMd5 = '';
+                this.isSaving = false;
+                this.fmBubbleOpen = false;
+            },
+            async notebook__publishBlog() {
+                await this.openBlogPublishModal();
+            },
+            // ============================
+            // [UI] 通用提示、对话方法
+            // ============================
+            closeAllPopups() {
+                console.log("Closing all popups...");
+                // 1. 关闭用户菜单（根组件状态）
+                this.userMenu = false;
+                // 2. 关闭右键菜单（根组件状态）
+                if (this.contextMenu?.show) {
+                    this.contextMenu.show = false;
+                }
+                // 关闭 FM 气泡
+                this.fmBubbleOpen = false;
+            },
+
+            showOverlay(message = '正在处理...') {
+                this.overlay = { show: true, message };
+            },
+            hideOverlay() {
+                this.overlay.show = false;
+            },
+            showToast(message, type = 'info') {
+                const id = ++this.toastIdCounter;
+                this.toasts.push({ id, message, type, show: true });
+
+                setTimeout(() => {
+                    const toast = this.toasts.find(t => t.id === id);
+                    if (toast) {
+                        toast.show = false;
+                        setTimeout(() => {
+                            this.toasts = this.toasts.filter(t => t.id !== id);
+                        }, 300);
+                    }
+                }, 2500);
+            },
+            async showConfirm({ title, message, confirmText, cancelText, type }) {
+                return new Promise((resolve) => {
+                    this.confirmDialog = {
+                        show: true, title: title || '确认操作', message: message || '确定要执行此操作吗？',
+                        confirmText: confirmText || '确认', cancelText: cancelText || '取消', type: type || 'danger',
+                        onConfirm: () => { this.confirmDialog.show = false; resolve(true); },
+                        onCancel: () => { this.confirmDialog.show = false; resolve(false); }
+                    };
+                });
+            },
+            async showPrompt({ title, message, placeholder, defaultValue, icon }) {
+                return new Promise((resolve) => {
+                    this.promptDialog = {
+                        show: true,
+                        title: title || '请输入',
+                        message: message || '',
+                        placeholder: placeholder || '',
+                        value: defaultValue || '',
+                        icon: icon || 'fas fa-edit',
+                        onConfirm: () => {
+                            this.promptDialog.show = false;
+                            resolve(this.promptDialog.value.trim());
+                        },
+                        onCancel: () => {
+                            this.promptDialog.show = false;
+                            resolve(null);
+                        }
+                    };
+                    this.$nextTick(() => this.$refs.promptInput?.focus());
+                });
+            },
+
+            // ============================
+            // [Iframe] 同步内容到预览窗
+            // ============================
+
+            _doSyncPreview() {
+                if (this.syncTimer) clearTimeout(this.syncTimer);
+                this.syncTimer = setTimeout(() => {
+                    let contentToSend = '';
+                    try {
+                        let pureInput = this.editorContent;
+                        if (isTextType(this.currentFile?.type)) {
+                            pureInput = `<div class="plain-text-preview">${escapeHtml(this.editorContent)}</div>`;
+                        }
+                        const rendered = renderMarkdown(pureInput, this.currentFile?.id ? this.currentFile.id : '/', this.username, this.domain);
+                        contentToSend = rendered.html;
+
+                        if (this.currentFile) {
+                            if (isMarkdownType(this.currentFile.id)) {
+                                this.currentFile.fmStatus = rendered.status; // 直接赋值状态
+                                this.currentFile.fmLog = rendered.log;
+                            } else {
+                                this.currentFile.fmStatus = null;
+                                this.currentFile.fmLog = '';
+                            }
+                        }
+                    } catch (e) {
+                        contentToSend = `<div class="text-red-500 p-4">渲染失败: ${escapeHtml(e.message)}</div>`;
+                    }
+
+                    if (!this.previewReady) return;
+                    const iframe = document.querySelector('iframe[x-ref="previewFrame"]');
+                    if (!iframe?.contentWindow) {
+                        console.warn('预览iframe未就绪，跳过同步（正常情况下不会发生）');
+                        return;
+                    }
+                    iframe.contentWindow.postMessage({
+                        type: 'SYNC_CONTENT',
+                        html: contentToSend,
+                        path: this.currentFile?.id || '',
+                        username: this.username,
+                        domain: this.domain,
+                    }, '*');
+                }, 300);
+            },
+            // ============================
+            // [Editor] 编辑框方法
+            // ============================
+            formatPath(path, maxLen = 45) {
+                if (!path) return '';
+                if (path.length <= maxLen) return path;
+                const half = Math.floor((maxLen - 3) / 2);
+                return path.substring(0, half) + '...' + path.substring(path.length - half);
+            },
+            copyPath() {
+                if (this.currentFile?.id) {
+                    navigator.clipboard.writeText(this.currentFile.id).then(() => {
+                        this.showToast('路径已复制到剪贴板', 'success');
+                    }).catch(() => {
+                        this.showToast('复制失败', 'error');
+                    });
+                }
+            },
+            async saveFile() {
+                if (!this.currentFile) return this.showToast('请先选择文件', 'error');
+                if (isDirType(this.currentFile.type)) return;
+
+                // 非文本类拦截
+                if (!isTextType(this.currentFile.id)) {
+                    return this.showToast('该文件类型不支持直接编辑保存', 'error');
+                }
+
+                // 检查是否有版本锚点
+                if (this.currentFile.base === null || this.currentFile.base === undefined) {
+                    return this.showToast('缺少版本基础信息，无法保存', 'error');
+                }
+
+                // 保存锁
+                if (this.isSaving) return;
+
+                // 计算 dist_md5
+                const distMd5 = SparkMD5.hash(this.editorContent);
+
+                // 防重复提交
+                if (distMd5 === this.lastCommitMd5) {
+                    this.showToast('内容未变更，无需保存', 'info');
+                    return;
+                }
+
+                this.isSaving = true;
+
+                try {
+                    // 计算 diff
+                    const diff = computeDiff(this.currentFile.baseContent, this.editorContent);
+
+                    const payload = {
+                        filepath: this.currentFile.id,
+                        base: this.currentFile.base,
+                        dst_md5: distMd5,
+                        diff: diff
+                    };
+
+                    const res = await fetch('/notebook/save_file_delta', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload),
+                        credentials: 'include',
+                    });
+
+                    const data = await res.json();
+                    if (data.code !== 0) throw new Error(data.msg || '保存失败');
+
+                    // 成功：更新锚点
+                    this.lastSavedContent = this.editorContent;
+                    this.lastCommitMd5 = distMd5;
+
+                    // 检查服务端是否变基
+                    if (data.data.base !== this.currentFile.base) {
+                        this.currentFile.baseContent = this.editorContent;
+                    }
+                    this.currentFile.base = data.data.base;
+                    this.currentFile.version = data.data.version;
+
+                    this.showToast('保存成功！', 'success');
+                } catch (e) {
+                    this.showToast(e.message || '保存失败', 'error');
+                } finally {
+                    this.isSaving = false;
+                }
+            },
+            closeCurrentFileAndDeselect() {
+                // 1. 清空编辑框、关闭当前文件
+                this.notebook__closeFile();
+                window.dispatchEvent(new Event('notebook:closeFile'));
+            },
+            // ============================
+            // [HISTORY] 文件历史相关方法
+            // ============================
+            showHistory() {
+                if (!this.currentFile) {
+                    this.showToast('请先选择文件', 'error');
+                    return;
+                }
+                if (isDirType(this.currentFile.type)) {
+                    this.showToast('目录没有历史版本', 'error');
+                    return;
+                }
+                this.historyDialog = {
+                    show: true,
+                    filePath: this.currentFile.id,
+                    historyList: [],
+                    selectedItem: null,
+                    loading: true,
+                    diffLoading: false,
+                    diffHtml: '<div class="text-gray-400 text-sm p-4">请在左侧选择一个版本查看差异</div>'
+                };
+
+                // 请求历史列表
+                fetch('/notebook/history', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ filepath: this.currentFile.id }),
+                    credentials: 'include',
+                })
+                    .then(res => res.json())
+                    .then(resp => {
+                        if (resp.code !== 0) throw new Error(resp.msg || '获取历史失败');
+                        this.historyDialog.historyList = resp.data.history || [];
+                    })
+                    .catch(e => {
+                        this.showToast(e.message || '获取历史失败', 'error');
+                        this.historyDialog.diffHtml = `<div class="text-red-400 text-sm p-4">加载失败: ${escapeHtml(e.message)}</div>`;
+                    })
+                    .finally(() => {
+                        this.historyDialog.loading = false;
+                    });
+            },
+            selectHistoryItem(item) {
+                this.historyDialog.selectedItem = item;
+                this.historyDialog.diffLoading = true;
+                this.historyDialog.diffHtml = '<div class="flex items-center justify-center p-8"><div class="loading-spinner"></div></div>';
+
+                const requestBody = { filepath: this.currentFile.id, version: item.version };
+
+                fetch('/notebook/diff', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestBody),
+                    credentials: 'include',
+                })
+                    .then(res => res.json())
+                    .then(resp => {
+                        if (resp.code !== 0) throw new Error(resp.msg || '获取差异失败');
+
+                        const { prev_content, current_content, current_version, prev_version } = resp.data;
+
+                        this.historyDialog.diffHtml = generateDiffHtml(prev_content || '', current_content || '');
+                        this.historyDialog.selectedContent = {
+                            current_content,
+                            prev_content,
+                            current_version,
+                            prev_version
+                        };
+                    })
+                    .catch(e => {
+                        console.error('[DEBUG] diff 请求失败:', e);
+                        this.historyDialog.diffHtml = `<div class="text-red-400 text-sm p-4">加载差异失败: ${escapeHtml(e.message)}</div>`;
+                    })
+                    .finally(() => {
+                        this.historyDialog.diffLoading = false;
+                    });
+            },
+            revertHistory() {
+                const cached = this.historyDialog.selectedContent;
+                if (!cached || !cached.current_content) {
+                    this.showToast('未获取到版本内容，请先点击左侧版本加载', 'error');
+                    return;
+                }
+
+                this.editorContent = cached.current_content;
+                this.lastSavedContent = cached.current_content;
+
+                this.showToast('已恢复到该版本', 'success');
+                this.closeHistory();
+            },
+            closeHistory() {
+                this.historyDialog.show = false;
+            },
+            // ============================
+            // [Share] 分享功能
+            // ============================
+            async ctxOpenShareDialog(path) {
+                const filename = path.replace(/\\/g, '/').split(/[?#]/)[0].split('/').pop() || '';
+                this.shareDialog = {
+                    show: true,
+                    loading: true,
+                    filepath: path,
+                    filename: filename,
+                    isShared: false,
+                    shareUrl: '',
+                    error: ''
+                };
+
+                // 构造探测 URL
+                const testUrl = `/notebook/share_settings/${path.replace(/^\//, '')}`;
+
+                try {
+                    const resp = await fetch(testUrl, { method: 'GET', credentials: 'include' });
+                    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+                    const data = await resp.json();
+                    if (data.code === 0) {
+                        // 已开启分享
+                        this.shareDialog.isShared = true;
+                        this.shareDialog.shareUrl = `/notebook/share/${this.username}/${this.domain}/${path.replace(/^\//, '')}`;
+                    } else {
+                        // 未开启分享
+                        this.shareDialog.isShared = false;
+                    }
+                } catch (e) {
+                    this.shareDialog.error = '网络请求失败';
+                } finally {
+                    this.shareDialog.loading = false;
+                }
+            },
+            async toggleShare() {
+                const { filepath, isShared } = this.shareDialog;
+                const method = isShared ? 'DELETE' : 'POST';
+
+                this.shareDialog.loading = true;
+                try {
+                    const resp = await fetch('/notebook/share', {
+                        method: method,
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ filepath: filepath }),
+                        credentials: 'include',
+                    });
+                    const data = await resp.json();
+                    if (data.code === 0) {
+                        if (method === 'POST') {
+                            // 开启成功，后端返回 key
+                            this.shareDialog.isShared = true;
+                            this.shareDialog.shareUrl = data.data.key; // key 就是完整 URL Path
+                            this.showToast('分享已开启', 'success');
+                        } else {
+                            // 关闭成功
+                            this.shareDialog.isShared = false;
+                            this.shareDialog.shareUrl = '';
+                            this.showToast('分享已关闭', 'success');
+                        }
+                    } else {
+                        throw new Error(resp.msg || '操作失败');
+                    }
+                } catch (e) {
+                    this.shareDialog.show = false;
+                    this.showToast('操作失败', 'error');
+                } finally {
+                    this.shareDialog.loading = false;
+                }
+            },
+            copyShareLink() {
+                const url = location.origin + this.shareDialog.shareUrl;
+                navigator.clipboard.writeText(url).then(() => {
+                    this.showToast('链接已复制到剪贴板', 'success');
+                }).catch(() => {
+                    this.showToast('复制失败', 'error');
+                });
+            },
+            viewSharePage() {
+                const url = location.origin + this.shareDialog.shareUrl;
+                window.open(url, '_blank');
+            },
+            closeShareDialog() {
+                this.shareDialog.show = false;
+            },
+            // ============================
+            // [Others] 搜索功能、主页、登出
+            // ============================
+            doSearch() {
+                this.showToast('搜索功能开发中...', 'info');
+                this.showSearch = false;
+            },
+            navigateAway() {
+                // 编码特殊字符，避免邮箱里有+、=等符号导致路径错误
+                const url = `/notebook/publish/${encodeURIComponent(this.username)}/${encodeURIComponent(this.domain)}/index.html`;
+                if (this.editorContent !== this.lastSavedContent && this.editorContent.trim() !== '') {
+                    this.showConfirm({
+                        title: '未保存的更改',
+                        message: '当前编辑内容尚未保存，离开后将丢失更改。确定要继续吗？',
+                        confirmText: '放弃更改',
+                        cancelText: '取消',
+                        type: 'warning'
+                    }).then(confirmed => {
+                        if (confirmed) window.location.href = url;
+                    });
+                } else {
+                    window.location.href = url;
+                }
+            },
+            async logout() {
+                if (this.editorContent !== this.lastSavedContent && this.editorContent.trim() !== '') {
+                    const confirmed = await this.showConfirm({
+                        title: '未保存的更改',
+                        message: '当前编辑内容尚未保存，退出登录将丢失未保存的更改。确定要继续吗？',
+                        confirmText: '放弃更改并退出',
+                        cancelText: '取消',
+                        type: 'warning'
+                    });
+                    if (!confirmed) return;
+                }
+
+                const confirmed = await this.showConfirm({ title: '退出登录', message: '退出后需要重新登录才能访问你的笔记', confirmText: '确认退出', type: 'danger' });
+                if (!confirmed) return;
+
+                this.showOverlay('正在退出登录...');
+
+                try {
+                    const res = await fetch('/notebook/logout', { method: 'POST', credentials: 'include' });
+                    const data = await res.json();
+                    if (data.code !== 0) {
+                        this.hideOverlay();
+                        this.showToast(data.msg || '退出失败', 'error');
+                    } else {
+                        setTimeout(() => {
+                            window.location.href = '/notebook/guest';
+                        }, 1200);
+                    }
+                } catch (e) {
+                    this.hideOverlay();
+                    this.showToast('登出请求失败', 'error');
+                }
+            },
+            // 打开修改密码弹窗
+            openChangePwdModal() {
+                this.userMenu = false; // 关闭下拉菜单
+                this.changePwdForm = {
+                    oldPwd: '',
+                    newPwd: '',
+                    confirmPwd: '',
+                    showOldPwd: false,
+                    showNewPwd: false,
+                    loading: false
+                };
+                this.showChangePwdModal = true;
+            },
+            // 关闭修改密码弹窗
+            closeChangePwdModal() {
+                this.changePwdForm = {
+                    oldPwd: '',
+                    newPwd: '',
+                    confirmPwd: '',
+                    showOldPwd: false,
+                    showNewPwd: false,
+                    loading: false
+                };
+                this.showChangePwdModal = false;
+            },
+            // 提交修改密码
+            async submitChangePwd() {
+                // 前端二次校验
+                if (this.changePwdForm.newPwd !== this.changePwdForm.confirmPwd) {
+                    this.showToast('两次输入的密码不一致', 'error');
+                    return;
+                }
+                if (this.changePwdForm.newPwd.length < 5 || this.changePwdForm.newPwd.length > 32) {
+                    this.showToast('新密码长度需在5-32位之间', 'error');
+                    return;
+                }
+                this.changePwdForm.loading = true;
+                try {
+                    const res = await fetch('/notebook/change_password', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            old_password: this.changePwdForm.oldPwd,
+                            new_password: this.changePwdForm.newPwd
+                        }),
+                        credentials: 'include'
+                    });
+                    const data = await res.json();
+                    if (data.code === 0) {
+                        this.showToast('密码修改成功，即将退出登录', 'success');
+                        // 清除本地登录态
+                        localStorage.removeItem('notebook_user_email');
+                        // 1秒后跳转到未登录页
+                        setTimeout(() => {
+                            window.location.href = '/notebook/guest';
+                        }, 1000);
+                    } else {
+                        this.showToast(data.msg || '密码修改失败', 'error');
+                    }
+                } catch (e) {
+                    this.showToast('网络错误，请稍后重试', 'error');
+                } finally {
+                    this.changePwdForm.loading = false;
+                }
+            },
+            // 打开关于弹窗
+            openAboutModal() {
+                this.userMenu = false; // 关闭下拉菜单
+                this.showAboutModal = true;
+            },
+            // 关闭关于弹窗
+            closeAboutModal() {
+                this.showAboutModal = false;
+            },
+            // ============================
+            // [UI] 博客发布相关方法
+            // ============================
+            // 1. 打开弹窗并获取当前版本
+            async openBlogPublishModal() {
+                this.blogPublishModalOpen = true;
+                this.blogPublishLoading = false; // 重置loading状态
+                // 清空旧状态
+                this.blogInfo = { version: null, homepageUrl: '' };
+
+                try {
+                    const res = await fetch('/notebook/blog');
+                    const data = await res.json();
+                    if (data.code === 0 && data.data.version) {
+                        this.blogInfo.version = data.data.version;
+                        // 构造博客首页地址（使用当前登录态的用户名和域名）
+                        this.blogInfo.homepageUrl = `/notebook/publish/${this.username}/${this.domain}/index.html`;
+                    }
+                } catch (e) {
+                    console.error('获取博客信息失败:', e);
+                    // 静默失败，弹窗依然显示“未发布”
+                }
+            },
+            // 2. 关闭弹窗并清理轮询
+            closeBlogPublishModal() {
+                this.blogPublishModalOpen = false;
+                this.stopBlogPolling(); // 关键：关闭时必须停止轮询
+                // 清理临时状态
+                this.blogPollingVersion = null;
+                this.blogPublishLoading = false;
+            },
+            // 3. 开始发布
+            async startBlogPublish() {
+                // 防止重复点击
+                if (this.blogPublishLoading) return;
+
+                // 检查未保存内容（可选，但推荐）
+                if (this.hasUnSavedChanges && this.hasUnSavedChanges()) {
+                    if (!confirm('发布将使用服务器上的最新版本，当前编辑内容尚未保存。是否继续发布？')) {
+                        return;
+                    }
+                }
+
+                this.blogPublishLoading = true;
+
+                try {
+                    const res = await fetch('/notebook/blog/publish', { method: 'POST' });
+                    const data = await res.json();
+
+                    if (data.code === 0 && data.data.version) {
+                        // 记录本次发布的版本号
+                        this.blogPollingVersion = String(data.data.version);
+                        // 开始轮询
+                        this.startBlogPolling();
+                    } else {
+                        throw new Error(data.msg || '发布请求失败');
+                    }
+                } catch (e) {
+                    this.showToast(`发布失败: ${e.message}`, 'error');
+                    this.blogPublishLoading = false;
+                }
+            },
+            // 4. 启动轮询
+            startBlogPolling() {
+                this.stopBlogPolling(); // 先清理旧的定时器
+                let pollCount = 0;
+                const maxPollCount = 60; // 1分钟超时（60次 * 1秒）
+
+                this.blogPollingTimer = setInterval(async () => {
+                    // 如果弹窗被手动关闭，停止轮询
+                    if (!this.blogPublishModalOpen) {
+                        this.stopBlogPolling();
+                        return;
+                    }
+
+                    pollCount++;
+                    if (pollCount > maxPollCount) {
+                        this.stopBlogPolling();
+                        this.showToast('发布超时，请稍后手动刷新查看状态', 'warn');
+                        this.blogPublishLoading = false;
+                        return;
+                    }
+
+                    try {
+                        const res = await fetch('/notebook/blog');
+                        const data = await res.json();
+
+                        if (data.code === 0 && data.data.version) {
+                            const serverVersion = String(data.data.version);
+                            // 核心比对：服务器版本 === 本次发布版本
+                            if (serverVersion === this.blogPollingVersion) {
+                                this.stopBlogPolling();
+                                this.blogPublishLoading = false;
+                                this.blogInfo.version = serverVersion;
+                                this.blogInfo.homepageUrl = `/notebook/publish/${this.username}/${this.domain}/index.html`;
+                                this.showToast('博客发布成功！', 'success');
+                            }
+                        }
+                    } catch (e) {
+                        console.error('轮询博客状态失败:', e);
+                        // 网络错误不中断轮询，继续尝试
+                    }
+                }, 1000); // 每1秒轮询一次
+            },
+            // 5. 停止轮询（工具方法）
+            stopBlogPolling() {
+                if (this.blogPollingTimer) {
+                    clearInterval(this.blogPollingTimer);
+                    this.blogPollingTimer = null;
+                }
+            },
+
+        }));
+    });
+</script>
+</body>
+</html>

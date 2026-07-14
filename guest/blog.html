@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="zh-cmn-Hans">
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <meta charset="utf-8">
+{% if page == "article" %}
+    <title>{{ article.title }} - 来自Madliar</title>
+{% elif page == "category" %}
+    <title>Madliar - 分类预览</title>
+{% elif page == "about" %}
+    <title>Madliar - 关于</title>
+{% else %}
+    <title>Madliar</title>
+{% endif %}
+    <meta name="HandheldFriendly" content="True" />
+    <meta name="MobileOptimized" content="320" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    {% if page == "article"%}
+        <meta name="description" content="Madliar的博客，{% if article.description %}{{ article.description }}{% else %}{{ article.title }}{% endif %}">
+    {% else %}
+        <meta name="description" content="Madliar的博客，记录学习笔记和灵感">
+    {% endif %}
+    <meta name="keywords" content="MADLIAR, CL, Madliar的博客, 技术博客, 编程笔记"/>
+    <meta name="author" content="CL">
+    <meta http-equiv="Cache-Control" content="no-transform" />
+    <meta http-equiv="Cache-Control" content="no-siteapp" />
+
+    <link rel="stylesheet" href="/notebook/static/css/font-awesome.min.css">
+    {% if page == "article" %}
+        <link rel="stylesheet" href="/notebook/static/css/highlight.min.css">
+    {% endif %}
+    <link rel="stylesheet" href="/notebook/static/css/new_blog.css">
+</head>
+
+<body>
+<div class="inner-body preload">
+    <div id="header">
+        <div class="pixel-font" id="header-title">MADL!AR</div>
+        <div class="pixel-font">Code is cheap, show me the PPT!</div>
+        <div class="nav">
+        <span class="nav-item" id="home">
+            <a href="/notebook/publish/{{ user }}/{{ service }}/index.html"><i class="fa fa-home" aria-hidden="true"></i>首页</a>
+        </span>
+            <span class="nav-item" id="category">
+            <a href="/notebook/publish/{{ user }}/{{ service }}/category.html"><i class="fa fa-list-alt" aria-hidden="true"></i>分类</a>
+        </span>
+            <span class="nav-item" id="Fragment">
+            <a href="/notebook"><i class="fa fa-map-signs" aria-hidden="true"></i>Fragment</a>
+        </span>
+            <span class="nav-item" id="about">
+            <a href="/notebook/publish/{{ user }}/{{ service }}/about.html"><i class="fa fa-info" aria-hidden="true"></i>关于</a>
+        </span>
+        </div>
+    </div>
+    <div id="page-body">
+        {% if page == "home" %}
+            <div class="second-title">最近发布</div>
+            <div class="article-wrapper">
+            {% for article in articles %}
+                <div class="article-bar">
+                    <a href="/notebook/publish/{{ user }}/{{ service }}/{{ article.identity }}.html">
+                        <span class="article-date">{{ article.date }}</span>
+                        <span class="article-title">{{ article.title }}</span>
+                    </a>
+                </div>
+            {% endfor %}
+            </div>
+        {% elif page == "article" %}
+            <div class="second-title">{{ article.title }}</div>
+            <div class="article-property">
+
+                {% if article.category %}
+                    <span class="article-property-item">分类：
+                <a href="/notebook/publish/{{ user }}/{{ service }}/category.html#{{ article.category }}">{{ article.category }}</a>
+            </span>
+                {% endif %}
+
+                {% if article.tags %}
+                    <span class="article-property-item">标签：
+                        {% for tag in article.tags %}
+                            <span class="article-property-tag">{{ tag }}</span>{% if not loop.last %}, {% endif %}
+                        {% endfor %}
+            </span>
+                {% endif %}
+
+                <span class="article-property-item">发布于: {{ article.date }}</span>
+            </div>
+            <div class="article-show"></div>
+            <div class="article-content"><textarea id="article-content-textarea" class="hidden-area">{{ article.content }}</textarea></div>
+            <script></script>
+        {% elif page == "category" %}
+            <div class="second-title">分类</div>
+            <div class="category-selector">
+                <h4 class="category-group-h"><i class="fa fa-th-list" aria-hidden="true"></i>所有分类</h4>
+                <div class="category-container">
+                    {% for category_name, article_list in categories  %}
+                        <a href="#{{ category_name }}">{{ category_name }}（{{ article_list | length }}）</a>
+                    {% endfor %}
+                </div>
+            </div>
+
+            {% for category_name, article_list in categories %}
+                <div class="category-group">
+                    <h4 id="{{ category_name }}" class="category-group-h"><i class="fa fa-quote-right" aria-hidden="true"></i>{{ category_name }}</h4>
+                    {% for article in article_list %}
+                        <div class="article-bar">
+                            <span class="article-date">{{ article.date }}</span>
+                            <a href="/notebook/publish/{{ user }}/{{ service }}/{{ article.identity }}.html">{{ article.title }}</a>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endfor %}
+        {% elif page == "about" %}
+            <div class="second-title">关于</div>
+            <p>这是我的个人博客，用来记录一些笔记和想法。</p>
+            <p>友情链接：
+            <ul>
+                <li><a href="https://wangyu.name/">WangYu's Space</a></li>
+                <li><a href="https://www.taterli.com/">TaterLi 个人博客</a></li>
+            </ul>
+            </p>
+        {% endif %}
+    </div>
+    <div id="footer" class="copyright center">
+        <p><span>© 2014 - <span id="footer-current-year"></span> madliar.com</span>&nbsp|&nbsp<span><a href="http://beian.miit.gov.cn/" target="_blank">陕ICP备16003242号</a></span>&nbsp|&nbsp<span><a href="/old">古老记忆</a></span></p>
+    </div>
+</div>
+<script>document.getElementById("footer-current-year").textContent = new Date().getFullYear();</script>
+<script>
+    document.onreadystatechange = function(){
+        if (document.readyState === 'complete') {
+            document.getElementsByClassName('preload')[0].classList.remove('preload');
+        }
+    }
+</script>
+{% if page == "article" %}
+    <script type="text/javascript" src="/notebook/static/js/jquery.min.js"></script>
+    <script type="text/javascript" src="/notebook/static/js/marked.js"></script>
+    <script type="text/javascript" src="/notebook/static/js/highlight.min.js"></script>
+    <script>
+        $(function(){
+            $(".article-show").html(marked($("#article-content-textarea").val()));
+            hljs.highlightAll();
+        });
+    </script>
+{% endif %}
+</body>
+</html>
