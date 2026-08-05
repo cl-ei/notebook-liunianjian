@@ -18,7 +18,7 @@
 #   请参照尾部的说明。
 # 9. 以 $source_root/_build 作为参考根目录，启动 http 静态代理服务器，映射到 URL：
 #    /notebook/publish/$user/$service
-#    其中，$user 和 $service 分别为注册用户的 email 的用户名和域名的部分，（）如：
+#    其中，$user 和 $service 分别为注册用户的 email 的用户名和域名的部分，如：
 #    guest@madliar.com => guest, madliar.com
 #
 # * Front Matter 是最早由 Jekyll 的创始人 Tom Preston-Werner 引入到静态站点生成器领域的一种
