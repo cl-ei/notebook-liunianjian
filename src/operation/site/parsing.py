@@ -20,27 +20,34 @@ _NON_ALLOWED_RE = re.compile(r'[^0-9a-zA-Z/_.-]')                     # 仅保�
 _MULTI_DASH_RE = re.compile(r'-+')                                    # 匹配连续中划线
 
 
-def normalize_identifier(s: str) -> str:
+def normalize_identifier(content: str) -> str:
     """
     规范化字符串，专为SSG的slug、文件名、URL路径生成设计：
     1. 将所有不可见字符（含空格、换行、零宽字符等）替换为中划线`-`
     2. 仅保留数字、大小写字母，以及 `-` `/` `_` `.` 四类符号
     3. 合并连续的中划线为单个
     4. 去除首尾的中划线
+    5. 去除/前后的-
 
     参数:
         s: 原始输入字符串（如文章标题、分类名等）
     返回:
         规范化后的字符串，全为非法字符时返回空串
+
+        "/t//Cortex-M33-zhong-duan-（-yi-）/-1--/" =>
+        '/t//Cortex-M33-zhong-duan-yi/1/'
     """
-    # 1. 不可见字符统一转为中划线
-    s = _INVISIBLE_RE.sub('-', s)
-    # 2. 过滤非允许字符
-    s = _NON_ALLOWED_RE.sub('', s)
-    # 3. 合并连续中划线
-    s = _MULTI_DASH_RE.sub('-', s)
-    # 4. 剔除首尾中划线
-    return s.strip('-')
+    def proc_one_seg(s: str):
+        # 1. 不可见字符统一转为中划线
+        s = _INVISIBLE_RE.sub('-', s)
+        # 2. 过滤非允许字符
+        s = _NON_ALLOWED_RE.sub('', s)
+        # 3. 合并连续中划线
+        s = _MULTI_DASH_RE.sub('-', s)
+        # 4. 剔除首尾中划线
+        return s.strip('-')
+
+    return "/".join([proc_one_seg(x) for x in content.split("/")])
 
 
 class ArticleBuilder:
@@ -144,11 +151,12 @@ class ArticleBuilder:
                     f"请修改 {SITE_CONFIG_FILE} 中的 permalink 规则\n"
                     f"示例: /posts/:year/:month/:slug/"
                 )
-        # 去掉开头的“/”, 清理双斜杠 (简单处理)
-        result = result.lstrip("/").replace("//", "/")
 
         # 将不可见字符变为-，保留数字、字母和有限字符如"/.-_",并限制前200个字符
         result = normalize_identifier(result)[:200]
+
+        # 去掉开头的“/”, 清理双斜杠 (简单处理)
+        result = result.lstrip("/").replace("//", "/")
 
         # 如果 permalink 以 "/" 结尾，则追加 "index.html"，否则追加 ".html"
         if result.endswith("/"):
