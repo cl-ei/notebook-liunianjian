@@ -38,7 +38,7 @@ class FeaturesConfig(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     toc: bool = Field(default=True, description="全局目录开关")
-
+    lazy_load: bool = Field(default=True, description="全局懒加载模式开关")
 
 class SiteConfig(BaseModel):
     model_config = ConfigDict(extra="ignore")  # 宽松模式：忽略未知字段

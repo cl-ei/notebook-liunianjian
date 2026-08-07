@@ -25,13 +25,6 @@ UGC_TAGS = {
     'a', 'img', 'table', 'thead', 'tbody', 'tr', 'th', 'td',
 }
 
-UGC_ATTRS: dict[str, set[str]] = {
-    "a":   {"href", "title"},
-    "img": {"src", "alt", "width", "height"},
-    "td":  {"colspan", "rowspan"},
-    "th":  {"colspan", "rowspan"},
-}
-
 PIPELINE_TAGS = UGC_TAGS | {
     'pre', 'code', 'span', 'div',     # 代码高亮 + 数学公式容器
     'details', 'summary',             # 折叠块
@@ -41,7 +34,7 @@ PIPELINE_TAGS = UGC_TAGS | {
 PIPELINE_ATTRS: dict[str, set[str]] = {
     "*":     {"class", "id"},
     "a":     {"href", "title", "target"},
-    "img":   {"src", "alt", "width", "height"},
+    "img":   {"src", "alt", "width", "height", "loading", "decoding", "srcset", "sizes", "referrerpolicy"},
     "pre":   {"data-language"},
     "code":  {"data-language"},
     "td":    {"colspan", "rowspan", "align"},
@@ -121,6 +114,9 @@ class CollectingRenderer(HTMLRenderer):
         self._anchor_counts: dict[str, int] = {}  # 用于锚点去重
         self._img_base_path: str = ""
 
+        # lazy_load
+        self._lazy_load_enabled = True
+
     def set_formatter(self, formatter: HtmlFormatter):
         self._formatter = formatter
 
@@ -129,6 +125,9 @@ class CollectingRenderer(HTMLRenderer):
 
     def set_img_base_path(self, img_base_path: str):
         self._img_base_path = img_base_path
+
+    def set_lazy_load(self, enable: bool):
+        self._lazy_load_enabled = enable
 
     @property
     def toc(self) -> List[TocItem]:
@@ -194,7 +193,10 @@ class CollectingRenderer(HTMLRenderer):
         collector.append(ImageRef(raw=raw, src=url, alt=text, title=title or ""))
 
         # ⚠️ 关键：仍然调用父类方法生成正常 HTML，不改变渲染输出
-        return super().image(text, url, title)
+        content = super().image(text, url, title)
+        if self._lazy_load_enabled and 'loading="lazy"' not in content and content.endswith(" />"):
+            content = content.removesuffix(" />") + ' loading="lazy" decoding="async" />'
+        return content
 
     def block_html(self, raw: str) -> str:
         self._collect_img_from_raw_html(raw)
@@ -249,6 +251,7 @@ class MarkdownRenderPipeline:
             self,
             *,
             toc: bool = True,
+            lazy_load: bool = True,
             plugins: dict[str, bool] = None,
             img_base_path: str = "",
             highlight_linenos: bool = False,      # 默认开启行号
@@ -299,6 +302,7 @@ class MarkdownRenderPipeline:
         renderer = CollectingRenderer(escape=False)
         renderer.set_formatter(self._formatter)
         renderer.set_toc(toc)
+        renderer.set_lazy_load(lazy_load)
         renderer.set_img_base_path(img_base_path)
 
         self._markdown = mistune.create_markdown(

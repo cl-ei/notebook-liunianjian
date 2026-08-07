@@ -224,8 +224,10 @@ class ArticleBuilder:
             fm["date"] = fm["date"].strftime(DATE_FORMAT)
 
         toc = fm["x-toc"] if "x-toc" in fm else self.config.features.toc
+        lazy_load = fm["x-lazy-load"] if "x-lazy-load" in fm else self.config.features.lazy_load
         pipeline = MarkdownRenderPipeline(
             toc=toc,
+            lazy_load=lazy_load,
             highlight_theme="xcode",
             img_base_path=self.config.build.base_path,
         )
