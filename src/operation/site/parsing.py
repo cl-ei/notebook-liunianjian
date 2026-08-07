@@ -15,10 +15,13 @@ from src.operation.site.rendering import MarkdownRenderPipeline
 DATE_FORMAT = "%Y-%m-%d"
 
 # 针对 slug 提取的规则
-_INVISIBLE_RE = re.compile(r'[\s\0-\1f\7f\u200b\u200c\u200d\ufeff]')  # 覆盖空白/控制字符/零宽字符/BOM
-_NON_ALLOWED_RE = re.compile(r'[^0-9a-zA-Z/_.-]')                     # 仅保留允许的字符
-_MULTI_DASH_RE = re.compile(r'-+')                                    # 匹配连续中划线
-
+MULTI_DASH_RE = re.compile(r'-+')                                    # 匹配连续中划线
+ALLOWED_CHARS = set(
+    "0123456789"
+    "abcdefghijklmnopqrstuvwxyz"
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    "/_.-"
+)
 
 def normalize_identifier(content: str) -> str:
     """
@@ -38,14 +41,9 @@ def normalize_identifier(content: str) -> str:
         '/t//Cortex-M33-zhong-duan-yi/1/'
     """
     def proc_one_seg(s: str):
-        # 1. 不可见字符统一转为中划线
-        s = _INVISIBLE_RE.sub('-', s)
-        # 2. 过滤非允许字符
-        s = _NON_ALLOWED_RE.sub('', s)
-        # 3. 合并连续中划线
-        s = _MULTI_DASH_RE.sub('-', s)
-        # 4. 剔除首尾中划线
-        return s.strip('-')
+        s = "".join(c if c in ALLOWED_CHARS else '-' for c in s)
+        s = MULTI_DASH_RE.sub('-', s).strip('-').lower()
+        return s
 
     return "/".join([proc_one_seg(x) for x in content.split("/")])
 
