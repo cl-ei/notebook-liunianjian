@@ -1580,7 +1580,7 @@ cover: /assets/images/cover.jpg
             // ============================
             navigateAway() {
                 // 编码特殊字符，避免邮箱里有+、=等符号导致路径错误
-                const url = `/notebook/publish/${encodeURIComponent(this.username)}/${encodeURIComponent(this.domain)}/index.html`;
+                const url = `/notebook/publish/${encodeURIComponent(this.username)}/${encodeURIComponent(this.domain)}`;
                 if (this.editorContent !== this.lastSavedContent && this.editorContent.trim() !== '') {
                     this.showConfirm({
                         title: '未保存的更改',

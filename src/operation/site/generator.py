@@ -334,7 +334,9 @@ class StaticSiteGenerator:
                     continue
 
                 # 写入文件
-                filepath = "%s/%s" % (write_root, post["dest_url"])
+                # 分两步，避免 permalink 为“/”或空，导致生成包含非预期的“//”的问题
+                dst_folder = "%s/%s" % (write_root, post["dest_url"].strip('/'))
+                filepath = dst_folder.rstrip("/") + "/index.html"
                 await self.adapter.storage.write_text(filepath, final_html)
                 self.record_log(f"已生成：{post['dest_url']}。")
 

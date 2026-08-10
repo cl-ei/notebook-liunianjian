@@ -86,7 +86,8 @@ class ArticleBuilder:
         if slug is None:
             filename = file_path.split("/")[-1]
             slug, _ = os.path.splitext(filename)
-        return Pinyin().get_pinyin(slug)
+        fallback_slug = Pinyin().get_pinyin(slug)
+        return normalize_identifier(fallback_slug)
 
     def _generate_permalink(self, fm: dict, slug: str, file_path: str, file_mtime: float) -> str:
         """
@@ -136,36 +137,6 @@ class ArticleBuilder:
         for placeholder, value in replacements.items():
             if placeholder in result:
                 result = result.replace(placeholder, value)
-
-        # 4. 检查是否还有未处理的占位符 (核心报错逻辑)
-        unsupported = re.findall(r':([a-zA-Z_][a-zA-Z0-9_]*)', result)
-        if unsupported:
-            # 过滤掉我们已经支持的，防止误报
-            unsupported = [p for p in unsupported if f":{p}" not in replacements]
-            if unsupported:
-                raise ErrorWithPrompt(
-                    f"配置文件 build.permalink 包含不支持的占位符: :{unsupported[0]}\n"
-                    f"当前仅支持: :slug, :year, :month\n"
-                    f"请修改 {SITE_CONFIG_FILE} 中的 permalink 规则\n"
-                    f"示例: /posts/:year/:month/:slug/"
-                )
-
-        # 将不可见字符变为-，保留数字、字母和有限字符如"/.-_",并限制前200个字符
-        result = normalize_identifier(result)[:200]
-
-        # 去掉开头的“/”, 清理双斜杠 (简单处理)
-        result = result.lstrip("/").replace("//", "/")
-
-        # 如果 permalink 以 "/" 结尾，则追加 "index.html"，否则追加 ".html"
-        if result.endswith("/"):
-            result = result.rstrip('/') + "/index.html"
-        else:
-            lower = result.lower()
-            if lower.endswith(".htm") or lower.endswith("html"):
-                pass
-            else:
-                result = result + ".html"
-
         return result
 
     @staticmethod
@@ -212,8 +183,6 @@ class ArticleBuilder:
 
         # 2. 生成目标URL
         dest_url = self._generate_permalink(fm, slug, file_path, file_mtime)
-        if not dest_url:
-            raise ErrorWithPrompt("未能解析到 permalink")
 
         # 3. 补充默认元数据
         fm.setdefault("layout", self.config.build.default_layout)
