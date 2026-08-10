@@ -116,6 +116,8 @@ class CollectingRenderer(HTMLRenderer):
 
         # lazy_load
         self._lazy_load_enabled = True
+        self._rel_to_storage_root = ""
+        self._dst_path = ""
 
     def set_formatter(self, formatter: HtmlFormatter):
         self._formatter = formatter
@@ -128,6 +130,12 @@ class CollectingRenderer(HTMLRenderer):
 
     def set_lazy_load(self, enable: bool):
         self._lazy_load_enabled = enable
+
+    def set_rel_to_storage_root(self, path: str):
+        self._rel_to_storage_root = path
+
+    def set_dst_path(self, path: str):
+        self._dst_path = path
 
     @property
     def toc(self) -> List[TocItem]:
@@ -185,12 +193,32 @@ class CollectingRenderer(HTMLRenderer):
         return super().heading(text, level, **attrs)
 
     def image(self, text: str, url: str, title: str | None = None) -> str:
-        # 采集数据写入当前上下文
+        """
+        解析 ![]() 的地址，统一转化为绝对路径引用方式
+
+        """
         collector = _image_collector.get()
-        raw = url
-        if url.startswith("/"):  # 只处理绝对路径
+
+        if not url:
+            url_class = ""
+        elif url.startswith(("https://", "http://", "//", "file://", "data:", "blob:", "#", "?")):
+            url_class = "protocol"
+        elif url.startswith("/"):
+            url_class = "abs"
+        else:
+            url_class = "rel"
+
+        # 只处理绝对路径和相对路径的情况，方便进行静态资源迁移
+        if url_class == "abs":  # 绝对路径
+            path = url
             url = self._img_base_path + url
-        collector.append(ImageRef(raw=raw, src=url, alt=text, title=title or ""))
+        elif url_class == "rel":  # 相对路径
+            path = self._rel_to_storage_root + "/" + url
+            url = self._img_base_path + self._dst_path.rstrip('/') + "/" + f"{url}"
+        else:
+            path: str = ""
+
+        collector.append(ImageRef(path=path, href=url, alt=text, title=title or ""))
 
         # ⚠️ 关键：仍然调用父类方法生成正常 HTML，不改变渲染输出
         content = super().image(text, url, title)
@@ -223,7 +251,7 @@ class CollectingRenderer(HTMLRenderer):
                 alt = next((g for g in alt_match.groups() if g is not None), "")
 
             _image_collector.get().append(
-                ImageRef(src=src, alt=alt, title=None)
+                ImageRef(path="", href=src, alt=alt, title=None)
             )
 
     def block_code(self,  code: str, info: str | str = None) -> str:
@@ -250,11 +278,13 @@ class MarkdownRenderPipeline:
     def __init__(
             self,
             *,
+            rel_path_to_storage_root: str,       # 当前处理的文章路径，参考 storage_root 的相对路径
+            dst_path_to_build_root: str,         # 目标路径，相对于 build_root
             toc: bool = True,
             lazy_load: bool = True,
             plugins: dict[str, bool] = None,
             img_base_path: str = "",
-            highlight_linenos: bool = False,      # 默认开启行号
+            highlight_linenos: bool = False,     # 默认开启行号
             highlight_stripnl: bool = False,     # 保留空行语义
             highlight_theme: str = "default",    # Pygments 内置主题名或自定义 Style 类
     ):
@@ -304,6 +334,8 @@ class MarkdownRenderPipeline:
         renderer.set_toc(toc)
         renderer.set_lazy_load(lazy_load)
         renderer.set_img_base_path(img_base_path)
+        renderer.set_rel_to_storage_root(rel_path_to_storage_root)
+        renderer.set_dst_path(dst_path_to_build_root)
 
         self._markdown = mistune.create_markdown(
             renderer=renderer,
@@ -337,7 +369,7 @@ class MarkdownRenderPipeline:
             {
                 "html": "<p>...</p>",
                 "css": ".xxx",
-                "images": [ImageRef(src="...", alt="..."), ...],
+                "images": [ImageRef(path="...", href="...", alt="..." ...), ...],
                 "used_math": bool,
                 "toc": [TocItem(level=1, ... ), ...]
             }

@@ -341,13 +341,12 @@ class StaticSiteGenerator:
                 self.record_log(f"已生成：{post['dest_url']}。")
 
                 # 进行静态资源的迁移
-                md_src = "%s/%s" % (self.adapter.storage_root, post["src_path"].strip('/'))
-                count = await self.copy_images(md_src, filepath, post["images"])
+                count = await self.copy_images(config, post["images"])
                 self.record_log(f"已处理 {count} 个图像对象。")
 
         print("generate complete!\n")
 
-    async def copy_images(self, md_src: str, md_dst: str, images: list[dict]) -> int:
+    async def copy_images(self, config: SiteConfig, images: list[dict]) -> int:
         """
         迁移 md文件关联的图片文件，分三种情况：
 
@@ -356,10 +355,10 @@ class StaticSiteGenerator:
         # ![alt](https://...)  → 不做任何处理
 
         Args:
-            md_src: str, md 文件所在路径，是包括 storage_root 的绝对路径
-            md_dst: str, md 文件渲染的 html 的目标位置，是包括 storage_root 的绝对路径
+            config: SiteConfig, md 文件渲染的 html 的目标位置，是包括 storage_root 的绝对路径
             images: list[dict], 元素为 ImageRef 结构: {
-                'src': 'board.jpg',
+                'path': 'board.jpg',
+                'href': 'board.jpg',
                 'alt': '',
                 'title': '',
             }
@@ -368,31 +367,24 @@ class StaticSiteGenerator:
         if not images:
             return proc_count
 
-        img_src_list: list[str] = [a['raw'] for a in images]
-        logging.info(f"start copy image files, src_path: {md_src}, total: {len(img_src_list)}")
-        for img_path in img_src_list:
-            for scheme in {'http', 'https', 'ftp', 'ftps', 'data', 'blob', 'file'}:
-                if img_path.startswith(scheme):
-                    continue
+        logging.info(f"start copy image files, total: {len(images)}")
+        for item in images:
+            img_path = item["path"]
+            target = item["href"]
 
-            if img_path.startswith("/"):
-                img_src = "%s/%s" % (self.adapter.storage_root, img_path.lstrip('/'))
-                img_dst = "%s/%s" % (self.write_root, img_path.lstrip('/'))
+            if not img_path:
+                continue
 
-                logging.debug(f"copy img file by abs way:\n"
-                              f"\timg_src:  {img_src}\n"
-                              f"\timg_dst: {img_dst}")
-            else:
-                # 相对路径的情况
-                source_parent = os.path.split(md_src)[0]
-                dst_parent = os.path.split(md_dst)[0]
+            if config.build.base_path:
+                target = Path(target).relative_to(config.build.base_path).as_posix()
 
-                img_src = "%s/%s" % (source_parent, img_path)
-                img_dst = "%s/%s" % (dst_parent, img_path)
+            img_src = "%s/%s" % (self.adapter.storage_root, img_path.lstrip('/'))
+            img_dst = "%s/%s" % (self.write_root, target)
 
-                logging.debug(f"copy img file by rel way:\n"
-                              f"\tsource:  {img_src}\n"
-                              f"\tdest: {img_dst}")
+            logging.debug(f"copy img file by abs way:\n"
+                          f"\timg_src:  {img_src}\n"
+                          f"\timg_dst: {img_dst}\n"
+                          f"\ttarget: {target}")
 
             if await self.adapter.storage.exists(img_src) and \
                     await self.adapter.storage.is_file(img_src):

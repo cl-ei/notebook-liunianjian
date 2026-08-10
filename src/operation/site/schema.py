@@ -32,6 +32,13 @@ class BuildConfig(BaseModel):
                 raise ValueError(f"default_layout must not contains char: {c}")
         return v
 
+    @field_validator('permalink')
+    @classmethod
+    def validate_permalink(cls, v: str) -> str:
+        if not v.startswith('/'):
+            raise ValueError("permalink must start with '/'")
+        return v
+
 
 class FeaturesConfig(BaseModel):
     """功能开关配置"""
@@ -51,8 +58,8 @@ class SiteConfig(BaseModel):
 # -------- 渲染管线的产物 --------
 class ImageRef(BaseModel):
     """不可变的图片引用记录"""
-    raw: str
-    src: str
+    path: str  # 文件路径
+    href: str  # 渲染的路径
     alt: str
     title: str | None = Field(default=None)
 

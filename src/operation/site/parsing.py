@@ -195,6 +195,8 @@ class ArticleBuilder:
         toc = fm["x-toc"] if "x-toc" in fm else self.config.features.toc
         lazy_load = fm["x-lazy-load"] if "x-lazy-load" in fm else self.config.features.lazy_load
         pipeline = MarkdownRenderPipeline(
+            rel_path_to_storage_root=Path(file_path).parent.as_posix(),
+            dst_path_to_build_root=dest_url,
             toc=toc,
             lazy_load=lazy_load,
             highlight_theme="xcode",
