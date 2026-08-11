@@ -23,6 +23,7 @@ class BuildConfig(BaseModel):
     permalink: str = "/posts/:slug/"
     default_layout: str = "post"
     base_path: str = ""
+    sitemap: bool = False
 
     @field_validator('default_layout')
     @classmethod

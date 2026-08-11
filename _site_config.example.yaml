@@ -41,6 +41,7 @@
 # ------------------------------------------------------------------------------
 site:
   name: "流年笺"                    # 站点名称，用于页面标题、订阅源头信息、og:site_name 元标签
+  url: "https://madliar.com"       # 生产环境根路径，用于生成 sitemap
   lang: "zh-CN"                    # 可选，HTML lang 属性值，缺省默认值为 zh-CN
   timezone: "Asia/Shanghai"        # 可选，IANA 时区名称，用于统一日期格式化规则
 
@@ -81,6 +82,8 @@ build:
   # 为空字符串时表示部署在域名根路径
   # 这里只针对 markdown 标签 ![]() 进行前缀注入，原生HTML标签（<img>、<link>、<script>等）一律不做处理
   base_path: "/notebook/publish/t2/tt.com"
+
+  sitemap: true
 
 # ------------------------------------------------------------------------------
 # 功能开关

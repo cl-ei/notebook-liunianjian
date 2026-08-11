@@ -22,6 +22,11 @@ from src.operation.site.parsing import ArticleBuilder
 from src.operation.site.templating import render_layout
 
 
+_VALID_LASTMOD = re.compile(
+    r'^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})?)?$'
+)
+
+
 async def parse_user_site_config(email: str) -> SiteConfig:
     """
     解析用户站点配置文件
@@ -306,6 +311,14 @@ class StaticSiteGenerator:
         context["service"] = service
 
         # 写入文件，移动产物
+        sitemap = []
+        create_sitemap = False
+        if config.build.sitemap is True and config.site.url:
+            self.record_log("将创建sitemap。")
+            create_sitemap = True
+        else:
+            self.record_log("不会创建sitemap。")
+
         for layout_name in user_defined_layouts:
             for post in context[layout_name]:
                 ctx = copy.deepcopy(context)
@@ -349,7 +362,33 @@ class StaticSiteGenerator:
                 count = await self.copy_images(config, post["images"])
                 self.record_log(f"已处理 {count} 个图像对象。")
 
+                # 添加进 site map
+                if create_sitemap:
+                    sitemap.append([post.get("fm", {}).get("lastmod"), f"{config.site.url}{post['dest_url']}"])
+
+        if create_sitemap:
+            content = self._gen_sitemap_content(sitemap)
+            filepath = f"{write_root}/sitemap.xml"
+            await self.adapter.storage.write_text(filepath, content)
+            self.record_log(f"sitemap已生成，大小：{len(content)}。")
+
         print("generate complete!\n")
+
+    @staticmethod
+    def _gen_sitemap_content(sitemap: list) -> str:
+        parts = ['<?xml version="1.0" encoding="UTF-8"?>',
+                 '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
+
+        for lastmod, loc in sitemap:
+            entry = '  <url>\n'
+            entry += f'    <loc>{loc}</loc>'
+            if isinstance(lastmod, str) and _VALID_LASTMOD.match(lastmod.strip()):
+                entry += f'\n    <lastmod>{lastmod.strip()}</lastmod>'
+            entry += '\n  </url>'
+            parts.append(entry)
+
+        parts.append('</urlset>')
+        return '\n'.join(parts)
 
     async def copy_images(self, config: SiteConfig, images: list[dict]) -> int:
         """
