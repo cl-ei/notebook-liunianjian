@@ -67,11 +67,9 @@ build:
   # - :date：文章发布日期（取自 FM 的 date 字段，无则取文件最后修改时间）
   # 说明：
   #   1. 必须以“/”起始
-  #   2. 无论配置是否包含尾部 "/"，生成的物理文件路径统一为 $permalink/index.html（自动去除尾部斜杠后拼接），
-  #     对外访问 URL 与配置保持一致：
-  #     - 配置 "/posts/:date/:slug"  → 访问 URL 为 /posts/2024-01-01/my-post
-  #     - 配置 "/posts/:date/:slug/" → 访问 URL 为 /posts/2024-01-01/my-post/
-  #   两种配置的物理产物相同，仅对外 URL 的尾部斜杠行为不同。
+  #   2. 尾部是否为 "/" 决定 html 生成规则：
+  #     - 配置 "/posts/:date/:slug"  → /posts/2024-01-01/my-post.html
+  #     - 配置 "/posts/:date/:slug/" → 访问 URL 为 /posts/2024-01-01/my-post/index.html
   permalink: "/posts/:date/:slug"
 
   # 当 md 文件中未指定 layout 参数时，默认渲染模板

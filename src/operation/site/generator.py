@@ -335,8 +335,13 @@ class StaticSiteGenerator:
 
                 # 写入文件
                 # 分两步，避免 permalink 为“/”或空，导致生成包含非预期的“//”的问题
-                dst_folder = "%s/%s" % (write_root, post["dest_url"].strip('/'))
-                filepath = dst_folder.rstrip("/") + "/index.html"
+                dst_url = post["dest_url"]
+                if not dst_url:
+                    filepath = f"{write_root}/index.html"
+                elif dst_url.endswith("/"):
+                    filepath = f"{write_root}/{dst_url}/index.html"
+                else:
+                    filepath = f"{write_root}/{dst_url}.html"
                 await self.adapter.storage.write_text(filepath, final_html)
                 self.record_log(f"已生成：{post['dest_url']}。")
 
