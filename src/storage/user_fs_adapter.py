@@ -206,6 +206,33 @@ class UserFSAdapter:
             # 兜底捕获底层异常，避免暴露内部实现
             raise ErrorWithPrompt(f"移动失败：{str(e)}")
 
+    async def move_meta_to_storage(self, src_absolute_path: str, dst_absolute_path: str):
+        """
+        移动 meta 下的文件夹到 storage, 仅适用于站点构建场景
+
+        Params:
+            src_absolute_path: str, 被移动的文件或目录，必须处在 meta 下
+            dst_absolute_path: str, 一定是个目录 /blog
+        """
+        if not Path(src_absolute_path).is_relative_to(self.meta_root):
+            raise PermissionError("Invalid path")
+        if not Path(dst_absolute_path).is_relative_to(self.storage_root):
+            raise PermissionError("Invalid path")
+
+        src_full = src_absolute_path
+        dst_full = dst_absolute_path
+
+        try:
+            await self.storage.rename(src_full, dst_full)
+            # 删除 dst_full 对应的 旧meta
+            old_meta = Path(self.meta_root) / (Path(dst_full).relative_to(self.storage_root))
+            old_meta_path = old_meta.as_posix()
+            if await self.storage.exists(old_meta_path):
+                await self.storage.remove_tree(old_meta_path)
+        except Exception as e:
+            # 兜底捕获底层异常，避免暴露内部实现
+            raise ErrorWithPrompt(f"移动失败：{str(e)}")
+
     async def find_files(self, src: str, filename_filter: Callable[[str], bool]) -> list[str]:
         """
         在用户目录下的 src 路径里搜索文件，返回相对路径的文件列表
@@ -246,9 +273,9 @@ class UserFSAdapter:
 
         return sorted(results)  # 按路径排序返回
 
-    async def copy_tree(self, src: str, dst: str, overwrite: bool = False) -> None:
+    async def copy_tree(self, src: str, dst: str) -> None:
         """
-        异步递归拷贝目录
+        异步递归拷贝目录，会直接覆盖目标目录的文件，并且不会删除已有文件
         """
         src_p = self.resolve(src)
         dst_p = self.resolve(dst)
@@ -256,14 +283,8 @@ class UserFSAdapter:
         if not await self.storage.is_dir(src_p):
             raise NotADirectoryError(f"Source directory not found: {src}")
 
-        if await self.storage.exists(dst):
-            if not overwrite:
-                raise FileExistsError(f"Destination directory already exists: {dst}")
-            # 递归删除目标目录
-            await self.storage.remove_tree(dst)
-
-        # 创建目标根目录
-        await self.storage.mkdir(dst_p, parents=True)
+        if not await self.storage.exists(dst):
+            await self.storage.mkdir(dst_p, parents=True)
 
         # 遍历源目录
         stack = [(src_p, dst_p)]

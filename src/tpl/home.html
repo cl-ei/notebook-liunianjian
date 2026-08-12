@@ -431,7 +431,7 @@ cover: /assets/images/cover.jpg
                         'fas fa-exclamation-circle': toast.type === 'error',
                         'fas fa-info-circle': toast.type === 'info'
                     }" class="text-lg mr-3 flex-shrink-0"></i>
-                    <p class="text-sm font-medium" x-text="toast.message"></p>
+                    <p class="text-sm font-medium overflow-auto" x-text="toast.message"></p>
                 </div>
             </div>
         </template>
@@ -1193,7 +1193,7 @@ cover: /assets/images/cover.jpg
                             this.toasts = this.toasts.filter(t => t.id !== id);
                         }, 300);
                     }
-                }, 2500);
+                }, type === 'info' ? 2500 : 5000);
             },
             async showConfirm({ title, message, confirmText, cancelText, type }) {
                 return new Promise((resolve) => {
@@ -1702,9 +1702,6 @@ cover: /assets/images/cover.jpg
                 // 示例：假设基础域名是 window.location.origin
                 // 假设路径规则是 /sites/{node.id}/index.html
                 this.userSiteAccessUrl = '/notebook/publish/' + this.username + "/" + this.domain + "/";
-
-                // 3. 重置加载状态（防止上次操作残留）
-                this.siteGenerateLoading = false;
                 // 4. 关闭modal
                 this.siteGenerateModalOpen = true;
             },
@@ -1713,7 +1710,7 @@ cover: /assets/images/cover.jpg
                 this.siteGenerateModalOpen = false;
             },
             async startSiteGeneration() {
-                this.siteGenerateModalOpen = false;
+                this.siteGenerateLoading = true;
                 try {
                     const res = await fetch('/notebook/static_site', {
                         method: 'POST',
@@ -1723,10 +1720,13 @@ cover: /assets/images/cover.jpg
                     if (data.code !== 0) {
                         this.showToast(data.msg || '生成失败', 'error');
                     } else {
-                        this.showToast('已开始生成，请稍后查看进度', 'info');
+                        this.showToast('生成成功', 'success');
                     }
                 } catch (e) {
                     this.showToast('请求失败', 'error');
+                } finally {
+                    this.siteGenerateLoading = false;
+                    this.siteGenerateModalOpen = false;
                 }
             },
         }));

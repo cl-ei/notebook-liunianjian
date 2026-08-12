@@ -21,7 +21,6 @@ from src.storage.user_fs_adapter import UserFSAdapter
 from src.operation.site.parsing import ArticleBuilder
 from src.operation.site.templating import render_layout
 
-
 _VALID_LASTMOD = re.compile(
     r'^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})?)?$'
 )
@@ -139,13 +138,13 @@ def is_markdown_file(filename: str) -> bool:
     """
     # 支持的Markdown扩展名集合（frozenset保证O(1)查找效率+不可变性）
     md_extensions = frozenset({
-        '.md', '.markdown',          # 最通用标准扩展名
+        '.md', '.markdown',  # 最通用标准扩展名
         '.mdown', '.mkd', '.mkdn', '.mdwn', '.mdtxt',  # 历史别名/小众变种
-        '.mdx',                      # React MDX
-        '.rmd',                      # R Markdown
-        '.jmd',                      # Julia Markdown
-        '.qmd',                      # Quarto Markdown
-        '.litmd',                    # Literate Markdown
+        '.mdx',  # React MDX
+        '.rmd',  # R Markdown
+        '.jmd',  # Julia Markdown
+        '.qmd',  # Quarto Markdown
+        '.litmd',  # Literate Markdown
     })
 
     # 需排除的临时/备份文件后缀（避免编辑器生成的临时文件被误判）
@@ -184,6 +183,10 @@ class StaticSiteGenerator:
         return self._config
 
     @property
+    def write_root_tmp(self) -> str:
+        return f"{self.adapter.meta_root}/static_site"
+
+    @property
     def write_root(self) -> str:
         if self._write_root:
             return self._write_root
@@ -212,22 +215,7 @@ class StaticSiteGenerator:
     async def _do_generate(self, config: SiteConfig):
         logging.info(f"start generate static site: {self.email}")
 
-        # 清除输出目录，移动static目录
-        write_root = self.write_root
-        if (await self.adapter.storage.exists(write_root) and
-                await self.adapter.storage.is_dir(write_root)):
-            await self.adapter.storage.remove_tree(write_root)
-
         self.record_log(f"{SITE_CONFIG_FILE} 加载成功。")
-
-        statics_dir = "%s/%s" % (self.adapter.storage_root, config.build.statics_dir)
-        if config.build.statics_dir and \
-                await self.adapter.storage.exists(statics_dir) and \
-                await self.adapter.storage.is_dir(statics_dir):
-            await self.adapter.copy_tree(src=statics_dir, dst=write_root)
-            self.record_log(f"静态文件拷贝成功。")
-        else:
-            self.record_log(f"跳过拷贝静态文件。")
 
         # 扫描所有Markdown文件
         # 有两种生成方式：
@@ -240,6 +228,7 @@ class StaticSiteGenerator:
         self.record_log(f"已获取posts总数：{len(all_files)}。")
 
         # 构建文章列表，解析基础信息
+        url_to_src_path: dict[str, str] = {}  # 检测 URL 冲突之用
         article_builder = ArticleBuilder(config, self.adapter.storage_root)
         all_posts: dict[str, list[Article]] = {}  # layout -> [articles...]
         for file_path in all_files:
@@ -276,6 +265,11 @@ class StaticSiteGenerator:
                 # 继续处理其他文件，不中断构建
                 continue
 
+            # 检查地址冲突
+            if article.dest_url in url_to_src_path:
+                raise ErrorWithPrompt(f"URL已被占用，重复文件：{article.src_path}, {url_to_src_path[article.dest_url]}")
+            url_to_src_path[article.dest_url] = article.src_path
+
         # 聚合数据
         context = {"site": config.site.model_dump()}
         user_defined_layouts: list[str] = []
@@ -309,6 +303,11 @@ class StaticSiteGenerator:
         context["email"] = self.email
         context["user"] = user
         context["service"] = service
+
+        # 准备写入！清除临时输出目录
+        if (await self.adapter.storage.exists(self.write_root_tmp) and
+                await self.adapter.storage.is_dir(self.write_root_tmp)):
+            await self.adapter.storage.remove_tree(self.write_root_tmp)
 
         # 写入文件，移动产物
         sitemap = []
@@ -350,11 +349,11 @@ class StaticSiteGenerator:
                 # 分两步，避免 permalink 为“/”或空，导致生成包含非预期的“//”的问题
                 dst_url = post["dest_url"]
                 if not dst_url:
-                    filepath = f"{write_root}/index.html"
+                    filepath = f"{self.write_root_tmp}/index.html"
                 elif dst_url.endswith("/"):
-                    filepath = f"{write_root}/{dst_url}/index.html"
+                    filepath = f"{self.write_root_tmp}/{dst_url}/index.html"
                 else:
-                    filepath = f"{write_root}/{dst_url}.html"
+                    filepath = f"{self.write_root_tmp}/{dst_url}.html"
                 await self.adapter.storage.write_text(filepath, final_html)
                 self.record_log(f"已生成：{post['dest_url']}。")
 
@@ -368,11 +367,36 @@ class StaticSiteGenerator:
 
         if create_sitemap:
             content = self._gen_sitemap_content(sitemap)
-            filepath = f"{write_root}/sitemap.xml"
+            filepath = f"{self.write_root_tmp}/sitemap.xml"
             await self.adapter.storage.write_text(filepath, content)
             self.record_log(f"sitemap已生成，大小：{len(content)}。")
 
+        # 写日志
         print("generate complete!\n")
+        self.record_log(f"生成结束。")
+        log_file = f"{self.write_root_tmp}/build.log"
+        contents = []
+        while not self.err_q.empty():
+            contents.append(self.err_q.get_nowait())
+        await self.adapter.storage.write_text(log_file, '\n'.join(contents))
+
+        # 移动到目标目录
+        if await self.adapter.storage.exists(self.write_root) and \
+                await self.adapter.storage.is_dir(self.write_root):
+            await self.adapter.storage.remove_tree(self.write_root)
+        await self.adapter.move_meta_to_storage(self.write_root_tmp, self.write_root)
+
+        # 拷贝静态文件，这里必须将其设置为真实的 self.write_root
+        # 实际上，这里会产生毫秒级的中断，因为是先切目录、后拷贝。
+        # 不愿意破坏 copy_tree 只在用户 storage 目录下操作的规定，因此这个问题不修复
+        statics_dir = "%s/%s" % (self.adapter.storage_root, config.build.statics_dir)
+        if config.build.statics_dir and \
+                await self.adapter.storage.exists(statics_dir) and \
+                await self.adapter.storage.is_dir(statics_dir):
+            await self.adapter.copy_tree(src=statics_dir, dst=self.write_root)
+            self.record_log(f"静态文件拷贝成功。")
+        else:
+            self.record_log(f"跳过拷贝静态文件。")
 
     @staticmethod
     def _gen_sitemap_content(sitemap: list) -> str:
@@ -423,7 +447,7 @@ class StaticSiteGenerator:
                 target = Path(target).relative_to(config.build.base_path).as_posix()
 
             img_src = "%s/%s" % (self.adapter.storage_root, img_path.lstrip('/'))
-            img_dst = "%s/%s" % (self.write_root, target)
+            img_dst = "%s/%s" % (self.write_root_tmp, target)
 
             logging.debug(f"copy img file by abs way:\n"
                           f"\timg_src:  {img_src}\n"
@@ -440,26 +464,21 @@ class StaticSiteGenerator:
 
         return proc_count
 
-    async def gen(self):
-        # 加载配置
-        config: SiteConfig | None = None
+    async def gen(self) -> tuple[bool, str]:
+        error_msg = ""
 
         try:
             config = await self.load_config()
+            if config is None:
+                return False, "未能加载 _site_config.yaml"
+
             await self._do_generate(config)
         except ErrorWithPrompt as e:
             self.record_log(f"发生错误：{e.msg}。")
+            error_msg = e.msg
         except Exception as e:
             logging.error(f"error happened in _do_generate: {e}\n{traceback.format_exc()}")
             self.record_log(f"发生未知错误。")
-        finally:
-            if config is None:
-                logging.error(f"cannot load site config of user: {self.email}")
-                return
+            error_msg = "致命错误"
 
-            self.record_log(f"生成结束。")
-            log_file = "%s/build.log" % self.write_root
-            contents = []
-            while not self.err_q.empty():
-                contents.append(self.err_q.get_nowait())
-            await self.adapter.storage.write_text(log_file, '\n'.join(contents))
+        return False if error_msg else True, error_msg

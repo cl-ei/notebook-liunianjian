@@ -1,3 +1,4 @@
+import asyncio
 import os
 import mimetypes
 from urllib.parse import unquote
@@ -9,8 +10,8 @@ from src import utils
 from src.operation.auth import AuthMgr
 from src.utils.global_lock import GlobalLock
 from src.operation.site.generator import parse_user_site_config
-from src.operation.worker import create_task_publish_blog
 from src.operation.guest_fs import read_guest_file, read_guest_image
+from src.operation.site.generator import StaticSiteGenerator
 from src.framework.error import ErrorWithPrompt
 from src.framework.config import RESERVED_EMAIL
 from src.storage.versioning_adaptor import (
@@ -215,10 +216,8 @@ async def share(
 
 @router.post("/notebook/static_site", dependencies=[Depends(AuthMgr.login_required)])
 async def gen_static_site(request: Request):
-    email = request.state.email
-    _ = await parse_user_site_config(email)
-    result = create_task_publish_blog(email=email)
-    return {"code": 0, "msg": "ok", "data": {"result": result}}
+    flag, msg = await StaticSiteGenerator(request.state.email).gen()
+    return {"code": 0 if flag else 400, "msg": msg or "ok", "data": None}
 
 
 @router.get("/notebook/publish/{email_user}/{email_service}/{file_path:path}")
