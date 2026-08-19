@@ -167,6 +167,53 @@ class ArticleBuilder:
             # 3. 终极兜底
             return datetime.datetime.strptime("1970-01-01", "%Y-%m-%d")
 
+    @staticmethod
+    def _extract_description(html: str, max_chars: int = 120) -> str:
+        # 1. 干掉噪音块（代码、图片、表格——技术博客最大的干扰源）
+        cleaned = re.sub(
+            r'<(pre|code|img|table|script|style)[^>]*>.*?</\1>',
+            '',
+            html,
+            flags=re.DOTALL | re.IGNORECASE
+        )
+
+        # 2. 提取所有 <p> 标签内的文本
+        paragraphs = re.findall(r'<p[^>]*>(.*?)</p>', cleaned, flags=re.DOTALL | re.IGNORECASE)
+
+        for p in paragraphs:
+            # 3. 去掉 <p> 内部的 HTML 标签，得到纯文本
+            text = re.sub(r'<[^>]+>', '', p).strip()
+            text = re.sub(r'\s+', ' ', text)  # 合并多余空白
+
+            # 4. 跳过太短或看起来像纯代码的行
+            if len(text) < 20:
+                continue
+            if re.match(r'^[\w\s\.\-\>\(\)\{\}\=\+\*\/]+$', text):
+                continue
+
+            # 5. 按中英文标点断句，拼到 max_chars 为止
+            sentences = re.split(r'([。！？\!?])', text)
+            result_text = ''
+            for i in range(0, len(sentences) - 1, 2):
+                chunk = sentences[i] + (sentences[i + 1] if i + 1 < len(sentences) else '')
+                if len(result_text) + len(chunk) <= max_chars:
+                    result_text += chunk
+                else:
+                    break
+
+            # 6. fallback：没拼出句子就用前 max_chars 字符
+            if not result_text.strip():
+                result_text = text[:max_chars]
+
+            # 7. 加省略号
+            if len(result_text) >= max_chars:
+                result_text = result_text.rstrip('。！？.!?') + '…'
+
+            return result_text
+
+        # 终极 fallback：连 <p> 都没有（比如友链页、首页）
+        return ""
+
     def build_one_post(self, file_path: str, raw_content: str, file_mtime: float) -> Article | None:
         """
         从文件路径和内容构建 Article，在这里只处理渲染流程，不负责如产物搬运等其他流程
@@ -184,14 +231,7 @@ class ArticleBuilder:
         # 2. 生成目标URL
         dest_url = self._generate_permalink(fm, slug, file_path, file_mtime)
 
-        # 3. 补充默认元数据
-        fm.setdefault("layout", self.config.build.default_layout)
-        fm.setdefault("title", slug)
-        fm.setdefault("date", self._extract_date(file_path, file_mtime).strftime(DATE_FORMAT))
-        # 统一为 str 类型
-        if isinstance(fm["date"], (datetime.datetime, datetime.date)):
-            fm["date"] = fm["date"].strftime(DATE_FORMAT)
-
+        # 3. 获取必要数据，生成html
         toc = fm["x-toc"] if "x-toc" in fm else self.config.features.toc
         lazy_load = fm["x-lazy-load"] if "x-lazy-load" in fm else self.config.features.lazy_load
         pipeline = MarkdownRenderPipeline(
@@ -204,6 +244,22 @@ class ArticleBuilder:
         )
 
         result = pipeline.render_to_html(body)
+
+        # 4. 补充默认元数据
+        fm.setdefault("layout", self.config.build.default_layout)
+        fm.setdefault("title", slug)
+        fm.setdefault("date", self._extract_date(file_path, file_mtime).strftime(DATE_FORMAT))
+
+        # 统一为 str 类型
+        if isinstance(fm["date"], (datetime.datetime, datetime.date)):
+            fm["date"] = fm["date"].strftime(DATE_FORMAT)
+
+        if "description" not in fm:
+            description = self._extract_description(result["html"])
+            if not description:
+                description = fm.get("title", slug)
+            fm["description"] = description
+
         return Article(
             src_path=file_path,
             dest_url=dest_url,
