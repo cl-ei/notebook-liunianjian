@@ -46,7 +46,11 @@ class SpecialIOLoader(BaseLoader):
 
 
 async def render_layout(layouts_root: str, layout_file: str, context: dict, adapter: UserFSAdapter) -> str:
-    env = Environment(loader=SpecialIOLoader(layouts_root, adapter))
+    env = Environment(
+        loader=SpecialIOLoader(layouts_root, adapter),
+        trim_blocks=True,  # 移除块（{% %}）后的第一个换行
+        lstrip_blocks=True,
+    )
     tpl = env.get_template(layout_file)   # 自动拉取 index + layout + 所有依赖
     context["_"] = context
     return tpl.render(context)
