@@ -1,12 +1,273 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>预览</title>
-    <link rel="stylesheet" href="/notebook/static/css/highlight.min.css">
+
+    <link rel="stylesheet" href="/notebook/static/katex-0.18.5/katex.min.css">
     <link rel="stylesheet" href="/notebook/static/fonts/fonts.css">
-    <link rel="stylesheet" href="/notebook/static/css/render.css">
+
+    <!-- ==================================================================
+         [代码高亮] 两套主题同时加载，靠 media 属性决定谁生效。
+         不用"切 href"的方式：那会有加载延迟，切主题时代码块闪白。
+         media 切换是纯样式层的，零延迟零闪烁；多下的一个 CSS 是一次性的。
+         ================================================================== -->
+    <link rel="stylesheet" href="/notebook/static/css/highlight.min.css"
+          id="hljs-light" media="all">
+    <link rel="stylesheet" href="/notebook/static/css/highlight-dark.min.css"
+          id="hljs-dark" media="not all">
+
+    <style>
+        /* ==============================================================
+           [调色板] 日间 —— 沿用原 render.css 的色值，只把硬编码换成变量
+           ============================================================== */
+        :root, [data-theme="light"] {
+            --c-bg:              #ffffff;
+            --c-text:            #3f3f3f;
+            --c-muted:           #6a737d;   /* 引用文字 */
+            --c-border:          #dfe2e5;   /* 引用竖线 */
+            --c-hr:              #939393;
+
+            --c-link:            #3f3f3f;
+            --c-link-hover:      #0080e8;
+
+            --c-pre-bg:          #f6f8fa;   /* 代码块 */
+            --c-pre-border:      transparent;
+            --c-code-bg:         rgba(27, 31, 35, .05);  /* 行内 code */
+
+            --c-th-bg:           #fafafa;   /* 表头 */
+            --c-td-border:       #eeeeee;
+            --c-tr-hover:        #f5f5f5;
+            --c-table-color:     #333333;
+
+            --c-img-border:      #dee2e6;
+            --c-danger:          #dc3545;
+            --c-failed-bg:       #f8f9fa;
+
+            /* 失败图片 SVG 的四个色块 */
+            --c-ph-bg:           #f1f3f5;
+            --c-ph-shape:        #dee2e6;
+            --c-ph-dot:          #adb5bd;
+            --c-ph-ground:       #ced4da;
+
+            --c-scrollbar:       #ced4da;
+            --c-scrollbar-hover: #adb5bd;
+        }
+
+        /* ==============================================================
+           [调色板] 夜间护眼
+           —— 预览底色与编辑器 --c-editor (#26282c) 同值，
+              切视图时眼睛不用重新适应明暗。
+           ============================================================== */
+        [data-theme="dark"] {
+            --c-bg:              #35383d;
+            --c-text:            #c9ccd1;
+            --c-muted:           #9399a2;
+            --c-border:          #3d4149;
+            --c-hr:              #3d4149;
+
+            --c-link:            #7cb0fa;
+            --c-link-hover:      #9cc4fc;
+
+            --c-pre-bg:          #1b1d20;   /* 比正文底更深 → 代码块"凹"进去 */
+            --c-pre-border:      #33373d;   /* 深底叠深底没边界会糊成一片 */
+            --c-code-bg:         rgba(255, 255, 255, .07);
+
+            --c-th-bg:           #2b2e33;
+            --c-td-border:       #33373d;
+            --c-tr-hover:        #2f3338;
+            --c-table-color:     #c9ccd1;
+
+            --c-img-border:      #3d4149;
+            --c-danger:          #f07171;
+            --c-failed-bg:       #2b2e33;
+
+            --c-ph-bg:           #2b2e33;
+            --c-ph-shape:        #3d4149;
+            --c-ph-dot:          #5a6069;
+            --c-ph-ground:       #4a5057;
+
+            --c-scrollbar:       #35383d;
+            --c-scrollbar-hover: #4a5057;
+        }
+
+        /* ================= 基础重置 ================= */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* ================= 滚动条 ================= */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--c-scrollbar); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--c-scrollbar-hover); }
+        * {
+            scrollbar-width: thin;
+            scrollbar-color: var(--c-scrollbar) transparent;
+        }
+
+        body {
+            font-family:
+                    'JetBrains Mono',        /* 英文等宽 */
+                    'Sarasa Mono SC',        /* 中文等宽黑体 */
+                    'Noto Sans Mono CJK SC', /* 安卓 / Linux 中文等宽 */
+                    'Microsoft YaHei',       /* Windows UI 兜底 */
+                    'PingFang SC',           /* macOS UI 兜底 */
+                    monospace;               /* 系统等宽最终兜底 */
+            font-size: 15px;
+            line-height: 1.7;
+            color: var(--c-text);
+            background: var(--c-bg);
+            padding: 20px 24px;
+            overflow-x: hidden;
+        }
+
+        /* ================= 加载态 ================= */
+        /* 原 render.html 用了 class="loading" 但 CSS 里没定义，这里补上 */
+        .loading {
+            color: var(--c-muted);
+            font-size: 13px;
+            padding: 8px 0;
+        }
+
+        /* ================= 兜底态 ================= */
+        /* 父页面会发 class 为这两个的纯文本 HTML 进来（不再是 Tailwind 类，
+           因为本页不加载 Tailwind，那些类在这里是无效的） */
+        .preview-placeholder {
+            color: var(--c-muted);
+            padding: 16px;
+            font-size: 14px;
+        }
+        .preview-error {
+            color: var(--c-danger);
+            padding: 16px;
+            font-size: 14px;
+            background: var(--c-failed-bg);
+            border-left: 3px solid var(--c-danger);
+            border-radius: 3px;
+        }
+
+        /* ================= Markdown 渲染样式 ================= */
+        #content { max-width: 100%; }
+
+        #content h1 {
+            font-size: 2em; font-weight: 600;
+            margin: 24px 0 16px 0; padding-bottom: 0.3em; line-height: 1.25;
+        }
+        #content h2 {
+            font-size: 1.5em; font-weight: 600;
+            margin: 24px 0 16px 0; padding-bottom: 0.3em; line-height: 1.25;
+        }
+        #content h3 {
+            font-size: 1.25em; font-weight: 600;
+            margin: 24px 0 16px 0; line-height: 1.25;
+        }
+        #content h4 {
+            font-size: 1em; font-weight: 600;
+            margin: 24px 0 16px 0; line-height: 1.25;
+        }
+        #content h5 {
+            font-size: 0.875em; font-weight: 600;
+            margin: 24px 0 16px 0; line-height: 1.25;
+        }
+        #content p { margin: 0 0 16px 0; }
+
+        #content a {
+            color: var(--c-link);
+            text-decoration: none;
+            border-bottom: 1px solid var(--c-link);
+            cursor: pointer;
+            transition: color .2s ease-out, border-color .2s ease-out;
+        }
+        #content a:hover {
+            color: var(--c-link-hover);
+            border-bottom-color: var(--c-link-hover);
+        }
+
+        #content code {
+            padding: 0.2em 0.4em;
+            font-size: 85%;
+            background-color: var(--c-code-bg);
+            border-radius: 3px;
+            font-family: "JetBrains Mono", Consolas, monospace;
+        }
+        #content pre {
+            padding: 16px;
+            overflow: auto;
+            font-size: 85%;
+            line-height: 1.45;
+            background-color: var(--c-pre-bg);
+            border: 1px solid var(--c-pre-border);
+            border-radius: 3px;
+            margin: 0 0 16px 0;
+        }
+        #content pre code {
+            background: transparent;
+            padding: 0;
+            font-size: inherit;
+        }
+
+        #content blockquote {
+            padding: 0 1em;
+            color: var(--c-muted);
+            border-left: 0.25em solid var(--c-border);
+            margin: 0 0 16px 0;
+        }
+
+        #content table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+            color: var(--c-table-color);
+            /* 原来是 background: white —— 夜间下会是一块刺眼的白底 */
+            background: transparent;
+        }
+        #content table th {
+            padding: 12px 16px;
+            font-weight: 500;
+            background-color: var(--c-th-bg);
+            border-bottom: 1px solid var(--c-td-border);
+        }
+        #content th, td { text-align: center; }
+        #content table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--c-td-border);
+        }
+        #content table tr:hover td { background-color: var(--c-tr-hover); }
+
+        #content ul,
+        #content ol { padding-left: 2em; margin: 0 0 16px 0; }
+        #content li { margin-top: 0.25em; }
+
+        #content hr {
+            height: 1px;
+            padding: 0;
+            margin: 24px 0;
+            background-color: var(--c-hr);
+            border: 0;
+        }
+
+        #content img {
+            max-width: 100%;
+            height: auto;
+            min-height: 24px;       /* 锁定最小高度，避免尺寸变化 */
+            min-width: 24px;        /* 锁定最小宽度 */
+            border: 1px solid var(--c-img-border);
+            border-radius: 4px;
+            box-sizing: border-box;
+            display: inline-block;  /* 保持行内块，避免布局跳动 */
+            vertical-align: middle;
+            margin: 16px auto;
+        }
+        #content img[data-failed="true"] {
+            opacity: 0.6;
+            border-color: var(--c-danger);
+            background: var(--c-failed-bg);
+        }
+    </style>
 </head>
 <body>
 <div id="content">
@@ -28,68 +289,110 @@
     }
 
     /**
-     * 应用图片失败状态（核心：确保只创建一个错误提示）
-     * @param {HTMLImageElement} img - 图片元素
-     * @param {string} src - 原始图片URL
-     * @param {string} alt - 原始alt文本
+     * 读取当前主题下的 CSS 变量值。
+     * 用于让"图片加载失败"的 SVG 占位图也跟随主题——
+     * 原来的 SVG 里硬编码了 5 个浅色，夜间下会是一块突兀的白。
+     */
+    function cssVar(name) {
+        const v = getComputedStyle(document.documentElement)
+            .getPropertyValue(name).trim();
+        return v || '#cccccc';
+    }
+
+    /**
+     * 生成跟随主题的失败占位 SVG。
+     * 注意：# 必须转义成 %23，否则 data URI 会把它当成片段标识符截断。
+     */
+    function buildFallbackSvg() {
+        const bg    = cssVar('--c-ph-bg').replace(/#/g, '%23');
+        const shape = cssVar('--c-ph-shape').replace(/#/g, '%23');
+        const dot   = cssVar('--c-ph-dot').replace(/#/g, '%23');
+        const ground= cssVar('--c-ph-ground').replace(/#/g, '%23');
+        const cross = cssVar('--c-danger').replace(/#/g, '%23');
+
+        return 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" '
+            + 'width="100%25" height="100%25" viewBox="0 0 200 150">'
+            + '<rect width="200" height="150" fill="' + bg + '"/>'
+            + '<path d="M60 55l40-30 40 30v45H60z" fill="' + shape + '"/>'
+            + '<circle cx="75" cy="65" r="5" fill="' + dot + '"/>'
+            + '<path d="M55 110l30-25 20 15 15-10 25 20v25H55z" fill="' + ground + '"/>'
+            + '<path d="M80 125l-25-25m0 25l25-25" stroke="' + cross + '" stroke-width="2" opacity="0.6"/>'
+            + '</svg>';
+    }
+
+    /**
+     * 应用图片失败状态（确保只创建一个错误提示）
      */
     function applyFailedState(img, src, alt) {
-        // 防止重复处理
         if (img.dataset.failed === 'true') return;
-
         img.dataset.failed = 'true';
-        img.removeAttribute('src');
 
-        // 应用失败样式
-        img.style.opacity = '0.5';
-        img.style.borderColor = '#dc3545';
-        img.style.background = '#f8f9fa';
+        img.src = buildFallbackSvg();   // 运行时取色，切主题后自动换色
+        img.style.objectFit = 'contain';
+        img.style.border = '1px dashed ' + cssVar('--c-img-border');
+        img.style.borderRadius = '6px';
+        img.style.padding = '4px';
+        img.style.maxWidth = '100px';
         img.alt = `图片加载失败: ${truncatePath(alt || src || '未知图片')}`;
     }
 
     /**
+     * 切换主题：改 <html data-theme> + 代码高亮样式表的 media。
+     * 两个 hljs 主题都已加载完毕，切换只是改 media 属性，瞬时生效。
+     */
+    function applyTheme(theme) {
+        const dark = theme === 'dark';
+        document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+        document.getElementById('hljs-light').media = dark ? 'not all' : 'all';
+        document.getElementById('hljs-dark').media  = dark ? 'all' : 'not all';
+    }
+
+    /**
      * 渲染HTML内容（完全抛弃正则预处理，全部DOM层面处理）
-     * @param {string} html - 已解析的HTML字符串
      */
     function renderHtml(html) {
         const contentDiv = document.getElementById('content');
         contentDiv.innerHTML = html;
 
-        // 高亮代码块
-        contentDiv.querySelectorAll('pre code').forEach(block => {
-            hljs.highlightElement(block);
-        });
+        // 代码高亮
+        if (window.hljs) {
+            contentDiv.querySelectorAll('pre code').forEach(block => {
+                try { hljs.highlightElement(block); } catch (e) { /* 忽略 */ }
+            });
+        }
 
-        // 处理所有图片 - 核心修复在这里
+        // 处理所有图片
         contentDiv.querySelectorAll('img').forEach(img => {
             const originalSrc = img.getAttribute('src') || '';
             const originalAlt = img.getAttribute('alt') || '';
 
-            // 关键：移除内联的onerror，防止双重触发
-            const inlineOnError = img.getAttribute('onerror');
-            if (inlineOnError) {
+            // 移除内联的 onerror，防止双重触发
+            if (img.hasAttribute('onerror')) {
                 img.removeAttribute('onerror');
             }
 
-            // 如果已经在缓存中，直接应用失败状态
+            // 已在缓存中 → 直接应用失败状态
             if (failedImgCache.has(originalSrc)) {
                 applyFailedState(img, originalSrc, originalAlt);
                 return;
             }
 
-            // 替换/劫持错误处理
+            // 劫持错误处理
             img.addEventListener('error', () => {
                 failedImgCache.add(originalSrc);
                 applyFailedState(img, originalSrc, originalAlt);
             }, { once: true });
         });
     }
+
     // 监听父页面消息
-    window.addEventListener('message', function(event) {
-        if (event.data && event.data.type === 'SYNC_CONTENT') {
-            const html = event.data.html || '';
-            renderHtml(html);
-        }
+    window.addEventListener('message', function (event) {
+        if (!event.data || event.data.type !== 'SYNC_CONTENT') return;
+
+        // 主题由父页面下发，先应用再渲染，保证 SVG / 高亮取到新色
+        if (event.data.theme) applyTheme(event.data.theme);
+
+        renderHtml(event.data.html || '');
     });
 
     // 点击通知父页面关闭弹窗

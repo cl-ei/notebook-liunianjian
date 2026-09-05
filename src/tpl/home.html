@@ -7,11 +7,86 @@
 
     <link rel="stylesheet" href="/notebook/static/font-awesome-6-4-0/css/all.min.css">
     <link rel="stylesheet" href="/notebook/static/fonts/fonts.css">
+    <link rel="stylesheet" href="/notebook/static/css/highlight.min.css">
+    <link rel="stylesheet" href="/notebook/static/katex-0.18.5/katex.min.css">
+    <script src="/notebook/static/js/highlight.min.js"></script>
+    <script src="/notebook/static/katex-0.18.5/katex.min.js"></script>
     <script src="/notebook/static/js/marked-18.0.5.js"></script>
     <script src="/notebook/static/js/diff_match_patch.js"></script>
     <script src="/notebook/static/js/spark-md5.min.js"></script>
     <script src="/notebook/static/js/purify-3.1.6.min.js"></script>
     <script src="/notebook/static/js/tailwindcss-3.4.17.js"></script>
+    <script>
+        /* ================================================================
+           [调色板] 把 Tailwind 的颜色名映射到 CSS 变量
+           —— 这是整套主题的核心：切主题只改 --c-* 变量，class 一个都不动
+           —— 变量值定义在下面 <style> 里的 :root / [data-theme="dark"]
+           用法：bg-surface  text-ink  border-line  bg-accent-soft ...
+           ================================================================ */
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        /* —— 表面层级（由底到顶）—— */
+                        canvas:   'var(--c-canvas)',      /* 最底层背景 */
+                        surface:  'var(--c-surface)',     /* 面板：nav/侧栏/弹窗/预览 */
+                        surface2: 'var(--c-surface-2)',   /* 次级条：标题栏/列表底 */
+                        surface3: 'var(--c-surface-3)',   /* 凹槽/禁用/代码块 */
+                        editor:   'var(--c-editor)',      /* 写作区 */
+                        hover:    'var(--c-hover)',       /* 悬停底色 */
+                        veil:     'var(--c-veil)',        /* 面板内半透明遮罩 */
+                        scrim:    'var(--c-scrim)',       /* 全屏遮罩 */
+
+                        /* —— 线条 —— */
+                        line:        'var(--c-border)',
+                        'line-soft': 'var(--c-border-soft)',
+
+                        /* —— 文字（由强到弱）—— */
+                        ink:   'var(--c-text)',
+                        'ink-2': 'var(--c-text-2)',
+                        'ink-3': 'var(--c-text-3)',
+                        'ink-4': 'var(--c-text-4)',
+
+                        /* —— 悬停加强 / 拖拽高亮 —— */
+                        'hover-strong': 'var(--c-hover-strong)',
+                        'drag':         'var(--c-drag)',
+
+                        /* —— 文件类型图标 —— */
+                        'icon-folder': 'var(--c-icon-folder)',
+                        'icon-md':     'var(--c-icon-md)',
+                        'icon-image':  'var(--c-icon-image)',
+                        'icon-code':   'var(--c-icon-code)',
+
+                        /* —— 强调色 —— */
+                        accent:         'var(--c-accent)',
+                        'accent-strong': 'var(--c-accent-strong)',
+                        'accent-soft':   'var(--c-accent-soft)',
+                        'accent-line':   'var(--c-accent-line)',
+                        danger:         'var(--c-danger)',
+                        'danger-strong': 'var(--c-danger-strong)',
+                        'danger-soft':   'var(--c-danger-soft)',
+                        success:        'var(--c-success)',
+                        'success-soft':  'var(--c-success-soft)',
+                        warn:           'var(--c-warn)',
+                        'warn-strong':   'var(--c-warn-strong)',
+                        'warn-soft':     'var(--c-warn-soft)',
+                    }
+                }
+            },
+            /* ================================================================
+               [安全清单] 只出现在 tree-browser.js 里的类名。
+               Tailwind CDN 靠扫描 DOM 生成样式，而文件树是 fetch 完之后才
+               x-html 塞进来的——扫描有延迟，首帧可能没样式。写死在这里，
+               让它启动时就生成好。以后树里新增了颜色类名，记得同步加进来。
+               ================================================================ */
+            safelist: [
+                'hover:bg-hover-strong', 'bg-drag',
+                'text-icon-folder', 'text-icon-md', 'text-icon-image', 'text-icon-code',
+                'group-hover:text-ink-3',
+                'ring-line',
+            ]
+        }
+    </script>
 
     <script defer src="/notebook/static/js/utils.js"></script>
     <script defer src="/notebook/static/js/tree-browser.js"></script>
@@ -20,6 +95,7 @@
         /* ========== 全局基础 ========== */
         [x-cloak] { display: none !important; }
 
+        /* ---- 层级（与主题无关）---- */
         :root {
             --z-nav: 30;
             --z-context-menu: 70;
@@ -31,10 +107,128 @@
             --z-toast: 130;
         }
 
+        /* ================================================================
+           [调色板 · 日间]  ——保持你现在的观感，只是把硬编码换成变量
+           ================================================================ */
+        :root, [data-theme="light"] {
+            /* 表面 */
+            --c-canvas:      #f8f9fa;
+            --c-surface:     #ffffff;
+            --c-surface-2:   #f8f9fa;
+            --c-surface-3:   #f1f3f5;
+            --c-editor:      #ffffff;
+            --c-hover:       #f1f3f5;
+            --c-hover-strong: #e9ecef;   /* 已聚焦行再悬停，比普通悬停深一档 */
+            --c-drag:        #93c5fd;    /* 拖拽：源节点 + 悬停目标 */
+            --c-veil:        rgba(255, 255, 255, .85);
+            --c-scrim:       rgba(0, 0, 0, .45);
+
+            /* 文件类型图标（文件树） */
+            --c-icon-folder: #f59e0b;
+            --c-icon-md:     #60a5fa;
+            --c-icon-image:  #f472b6;
+            --c-icon-code:   #22c55e;
+
+            /* 线条 */
+            --c-border:      #e9ecef;
+            --c-border-soft: #f1f3f5;
+
+            /* 文字 */
+            --c-text:        #212529;
+            --c-text-2:      #495057;
+            --c-text-3:      #868e96;
+            --c-text-4:      #adb5bd;
+
+            /* 强调色 */
+            --c-accent:         #3b82f6;
+            --c-accent-strong:  #2563eb;
+            --c-accent-soft:    #eff6ff;
+            --c-accent-line:    #bfdbfe;
+            --c-danger:         #ef4444;
+            --c-danger-strong:  #dc2626;
+            --c-danger-soft:    #fef2f2;
+            --c-success:        #10b981;
+            --c-success-soft:   #ecfdf5;
+            --c-warn:           #f59e0b;
+            --c-warn-strong:    #d97706;
+            --c-warn-soft:      #fffbeb;
+            --c-on-accent:      #ffffff;   /* 强调色填充之上的文字色 */
+
+            /* 编辑器细节 */
+            --c-caret:          #212529;
+            --c-selection:      rgba(77, 171, 247, .25);
+
+            /* 滚动条 */
+            --c-scrollbar:       #ced4da;
+            --c-scrollbar-hover: #adb5bd;
+        }
+
+        /* ================================================================
+           [调色板 · 夜间护眼]  夜半听风雨，挑灯书流年
+
+           调这里时要记住四条（暗色不是"浅色的反色"）：
+           1. 底色不用纯黑——#000 配白字会产生光晕(halation)，反而更累
+           2. 正文不用纯白——浅灰比 #fff 舒服得多
+           3. 整体压低对比度，"降一档"才是护眼的本质
+           4. editor 略亮于 surface，让"灯"照在纸上，写作区成为视觉焦点
+           ================================================================ */
+        [data-theme="dark"] {
+            /* 表面：微暖的中性深灰，不用冷蓝黑 */
+            --c-canvas:      #191a1c;
+            --c-surface:     #212326;
+            --c-surface-2:   #1d1f21;
+            --c-surface-3:   #2b2e33;
+            --c-editor:      #35383d;   /* 比面板亮一档 */
+            --c-hover:       #2f3338;
+            --c-hover-strong: #3a4046;
+            --c-drag:        rgba(91, 156, 248, .32);  /* 半透明比实色更贴合深底 */
+            --c-veil:        rgba(33, 35, 38, .85);
+            --c-scrim:       rgba(0, 0, 0, .65);   /* 暗背景下要更深才压得住 */
+
+            /* 文件类型图标：夜间降饱和 + 提亮，避免变成一盏盏小彩灯 */
+            --c-icon-folder: #dba63f;
+            --c-icon-md:     #6ba7f5;
+            --c-icon-image:  #e07fb0;
+            --c-icon-code:   #52c47f;
+
+            /* 线条 */
+            --c-border:      #303031;
+            --c-border-soft: #2b2e33;
+
+            /* 文字 */
+            --c-text:        #c9ccd1;
+            --c-text-2:      #a8adb5;
+            --c-text-3:      #9399a2;
+            --c-text-4:      #767c85;
+
+            /* 强调色：降饱和 + 提亮，避免夜里"闪光弹" */
+            --c-accent:         #5b9cf8;
+            --c-accent-strong:  #7cb0fa;
+            --c-accent-soft:    rgba(91, 156, 248, .14);
+            --c-accent-line:    rgba(91, 156, 248, .35);
+            --c-danger:         #f07171;
+            --c-danger-strong:  #f58a8a;
+            --c-danger-soft:    rgba(240, 113, 113, .14);
+            --c-success:        #34d399;
+            --c-success-soft:   rgba(52, 211, 153, .14);
+            --c-warn:           #fbbf24;
+            --c-warn-strong:    #fcd34d;
+            --c-warn-soft:      rgba(251, 191, 36, .14);
+            --c-on-accent:      #14181e;   /* 亮色填充上必须用深色文字，否则对比度不够 */
+
+            /* 编辑器细节 */
+            --c-caret:          #e0b64a;             /* 暖黄光标，呼应"挑灯" */
+            --c-selection:      rgba(224, 182, 74, .28);
+
+            /* 滚动条 */
+            --c-scrollbar:       #3a3f45;
+            --c-scrollbar-hover: #4a5057;
+        }
+
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background-color: #f8f9fa;
-            color: #212529;
+            background-color: var(--c-canvas);
+            color: var(--c-text);
             overflow: hidden;
             height: 100vh;
         }
@@ -42,18 +236,18 @@
         /* ========== 滚动条 ========== */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #ced4da; border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: #adb5bd; }
+        ::-webkit-scrollbar-thumb { background: var(--c-scrollbar); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--c-scrollbar-hover); }
 
         /* ========== 编辑器 ========== */
         textarea.editor, pre code {
             font-family:
-                'JetBrains Mono',
-                'Sarasa Mono SC',
-                'Noto Sans Mono CJK SC',
-                'Microsoft YaHei',
-                'PingFang SC',
-                monospace;
+                    'JetBrains Mono',
+                    'Sarasa Mono SC',
+                    'Noto Sans Mono CJK SC',
+                    'Microsoft YaHei',
+                    'PingFang SC',
+                    monospace;
         }
         textarea.editor {
             font-size: 14px;
@@ -78,7 +272,7 @@
 
         /* 默认状态（代码图标，非胶囊） */
         .fm-default {
-            color: #9ca3af; /* gray-400 */
+            color: var(--c-text-4);
             font-size: 10px;
         }
 
@@ -102,75 +296,137 @@
         /* ========== 加载动画 ========== */
         .loading-spinner {
             width: 14px; height: 14px;
-            border: 2px solid #e9ecef;
-            border-top-color: #4dabf7;
+            border: 2px solid var(--c-surface-3);
+            border-top-color: var(--c-accent);
             border-radius: 50%;
             animation: spin 0.6s linear infinite;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ========== 编辑器 · 主题细节 ==========
+           暗色模式最容易漏的三个：光标、选区、placeholder
+           光标尤其致命——不设 caret-color，它在深底上会变成黑光标，几乎看不见 */
+        textarea.editor { caret-color: var(--c-caret); }
+        textarea.editor::placeholder { color: var(--c-text-4); }
+        textarea.editor::selection { background: var(--c-selection); color: inherit; }
+        ::selection { background: var(--c-selection); }
+
+        /* ========== FM 胶囊 · 夜间去饱和 ==========
+           高饱和渐变填充在夜里就是两块刺眼的灯，改成"淡底 + 亮字" */
+        [data-theme="dark"] .fm-ok {
+            background: var(--c-success-soft);
+            color: var(--c-success);
+            box-shadow: none;
+        }
+        [data-theme="dark"] .fm-error {
+            background: var(--c-warn-soft);
+            color: var(--c-warn);
+            box-shadow: none;
+        }
+
+        /* 强调色填充之上的文字：夜间把白字换成深色。
+           亮绿/亮蓝填充配白字对比度不到 2:1，在夜里尤其糊。 */
+        [data-theme="dark"] .text-white { color: var(--c-on-accent); }
+
+        /* ========== 主题切换过渡 ==========
+           只在切换那一瞬间挂到 <html> 上（见 applyTheme），260ms 后摘掉。
+           常驻会给整个 DOM 加 transition，编辑大文件时明显拖慢响应。 */
+        .theme-anim,
+        .theme-anim *,
+        .theme-anim *::before,
+        .theme-anim *::after {
+            transition: background-color .22s ease,
+            border-color     .22s ease,
+            color            .22s ease,
+            box-shadow       .22s ease !important;
+        }
     </style>
+
+    <script>
+        /* ================================================================
+           [防闪烁] 必须在 body 渲染前同步执行，且不能加 defer。
+           在样式生效前就把 data-theme 打到 <html> 上，
+           否则夜间用户每次刷新都会先闪一下白底。
+           想改默认主题：把下面的 fallback 改成 'light' 即可。
+           ================================================================ */
+        (function () {
+            var saved = localStorage.getItem('notebook_theme');
+            var theme = saved
+                || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
 </head>
 <body>
 
 <!-- ============================
      [NAV] 顶部导航栏
      ============================ -->
-<nav class="h-14 bg-white border-b border-gray-200 flex items-center justify-center px-4 flex-shrink-0 shadow-sm relative z-[var(--z-nav)]">
+<nav class="h-14 bg-surface border-b border-line flex items-center justify-center px-4 flex-shrink-0 shadow-sm relative z-[var(--z-nav)]">
     <div class="absolute left-4 flex items-center space-x-1">
-        <a href="#" @click.prevent="navigateAway()" class="flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-all duration-150" title="返回主页">
+        <a href="#" @click.prevent="navigateAway()" class="flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-ink-2 hover:bg-hover hover:text-ink transition-all duration-150" title="返回主页">
             <i class="fas fa-home text-sm"></i>
             <span class="text-sm font-medium hidden sm:inline">主页</span>
         </a>
-        <div class="h-6 w-px bg-gray-200 mx-1"></div>
-        <button x-show="currentFile" @click="saveFile()" :disabled="isSaving" class="flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed" title="保存 (Ctrl+S)">
+        <div class="h-6 w-px bg-line mx-1"></div>
+        <button x-show="currentFile" @click="saveFile()" :disabled="isSaving" class="flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-ink-2 hover:bg-hover hover:text-ink transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed" title="保存 (Ctrl+S)">
             <i class="fas fa-save text-sm"></i>
             <span class="text-sm font-medium hidden sm:inline">保存</span>
         </button>
-        <button x-show="currentFile" @click="showHistory()" class="flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-all duration-150" title="历史版本">
+        <button x-show="currentFile" @click="showHistory()" class="flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-ink-2 hover:bg-hover hover:text-ink transition-all duration-150" title="历史版本">
             <i class="fas fa-history text-sm"></i>
             <span class="text-sm font-medium hidden sm:inline">历史</span>
         </button>
     </div>
 
     <div class="flex items-center justify-center">
-        <span class="font-bold text-gray-800 text-sm tracking-wide">流年笺</span>
+        <span class="font-bold text-ink text-sm tracking-wide">流年笺</span>
     </div>
 
     <div class="absolute right-4 flex items-center space-x-2">
-        <div class="flex items-center bg-gray-100 rounded-lg p-0.5 ml-1">
-            <button @click="viewMode = 'single'" :class="viewMode === 'single' ? 'bg-white text-blue-500 shadow-sm' : 'text-gray-400 hover:text-gray-600'" class="px-2.5 py-1.5 rounded-md text-xs transition-all duration-150" title="单页视图">
+        <!-- [THEME] 日间 / 夜间护眼 -->
+        <button @click="toggleTheme()"
+                class="flex items-center space-x-2 px-2.5 py-1.5 rounded-lg text-ink-2 hover:bg-hover transition-all duration-150"
+                :title="theme === 'dark' ? '切换到日间模式' : '切换到夜间护眼模式'">
+            <i class="fas text-sm" :class="theme === 'dark' ? 'fa-sun' : 'fa-moon'"></i>
+            <span class="text-sm font-medium hidden sm:inline" x-text="theme === 'dark' ? '日间' : '夜间'"></span>
+        </button>
+        <div class="h-6 w-px bg-line mx-1"></div>
+
+        <div class="flex items-center bg-surface3 rounded-lg p-0.5 ml-1">
+            <button @click="viewMode = 'single'" :class="viewMode === 'single' ? 'bg-surface text-accent shadow-sm' : 'text-ink-4 hover:text-ink-2'" class="px-2.5 py-1.5 rounded-md text-xs transition-all duration-150" title="单页视图">
                 <i class="fas fa-window-maximize"></i>
             </button>
-            <button @click="viewMode = 'split'" :class="viewMode === 'split' ? 'bg-white text-blue-500 shadow-sm' : 'text-gray-400 hover:text-gray-600'" class="px-2.5 py-1.5 rounded-md text-xs transition-all duration-150" title="双页视图">
+            <button @click="viewMode = 'split'" :class="viewMode === 'split' ? 'bg-surface text-accent shadow-sm' : 'text-ink-4 hover:text-ink-2'" class="px-2.5 py-1.5 rounded-md text-xs transition-all duration-150" title="双页视图">
                 <i class="fas fa-columns"></i>
             </button>
         </div>
-        <div class="h-6 w-px bg-gray-200 mx-1"></div>
+        <div class="h-6 w-px bg-line mx-1"></div>
         <div class="relative">
-            <button @click="userMenu = !userMenu" class="flex items-center space-x-2 px-2 py-1.5 rounded-lg hover:bg-gray-100 transition-colors max-w-[200px]">
+            <button @click="userMenu = !userMenu" class="flex items-center space-x-2 px-2 py-1.5 rounded-lg hover:bg-hover transition-colors max-w-[200px]">
                 <div class="w-7 h-7 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0" x-text="currentUserEmail.charAt(0).toUpperCase()"></div>
-                <span class="hidden md:inline text-xs font-medium text-gray-700 truncate" x-text="currentUserEmail"></span>
+                <span class="hidden md:inline text-xs font-medium text-ink-2 truncate" x-text="currentUserEmail"></span>
             </button>
-            <div x-show="userMenu" @click.away="userMenu = false" @keydown.escape="userMenu = false" x-transition class="absolute right-0 top-full mt-1.5 w-56 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-[var(--z-normal-modal)]">
+            <div x-show="userMenu" @click.away="userMenu = false" @keydown.escape="userMenu = false" x-transition class="absolute right-0 top-full mt-1.5 w-56 bg-surface rounded-xl shadow-lg border border-line-soft py-1 z-[var(--z-normal-modal)]">
                 <!-- 用户信息头部（保留，符合认知） -->
-                <div class="px-4 py-3 border-b border-gray-100">
+                <div class="px-4 py-3 border-b border-line-soft">
                     <div class="flex items-center space-x-3">
                         <div class="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white font-bold shadow-sm" x-text="currentUserEmail.charAt(0).toUpperCase()"></div>
                         <div class="min-w-0">
-                            <p class="text-sm font-medium text-gray-800 truncate" x-text="currentUserEmail"></p>
-                            <p class="text-xs text-gray-500">已登录</p>
+                            <p class="text-sm font-medium text-ink truncate" x-text="currentUserEmail"></p>
+                            <p class="text-xs text-ink-3">已登录</p>
                         </div>
                     </div>
                 </div>
 
-                <button @click="openChangePwdModal()" type="button" class="w-full flex items-center space-x-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors">
-                    <i class="fas fa-key text-gray-400 w-4"></i>
+                <button @click="openChangePwdModal()" type="button" class="w-full flex items-center space-x-3 px-4 py-2.5 text-sm text-ink-2 hover:bg-accent-soft hover:text-accent transition-colors">
+                    <i class="fas fa-key text-ink-4 w-4"></i>
                     <span>修改密码</span>
                 </button>
 
-                <div class="border-t border-gray-100 my-1"></div>
+                <div class="border-t border-line-soft my-1"></div>
 
-                <button @click="logout()" type="button" class="w-full flex items-center space-x-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors">
+                <button @click="logout()" type="button" class="w-full flex items-center space-x-3 px-4 py-2.5 text-sm text-danger hover:bg-danger-soft transition-colors">
                     <i class="fas fa-sign-out-alt w-4"></i>
                     <span>退出登录</span>
                 </button>
@@ -191,10 +447,10 @@
             x-transition:leave="transition ease-in duration-200"
             x-transition:leave-start="translate-x-0 opacity-100"
             x-transition:leave-end="-translate-x-full opacity-0"
-            class="w-64 bg-white border-r border-gray-200 flex-shrink-0 overflow-hidden flex flex-col absolute md:relative z-20 h-full"
+            class="w-64 bg-surface border-r border-line flex-shrink-0 overflow-hidden flex flex-col absolute md:relative z-20 h-full"
     >
-        <div class="h-11 p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
-            <h3 class="text-[11px] font-bold text-gray-400 uppercase tracking-wider">文件管理</h3>
+        <div class="h-11 p-4 border-b border-line-soft flex items-center justify-between bg-surface2">
+            <h3 class="text-[11px] font-bold text-ink-4 uppercase tracking-wider">文件管理</h3>
         </div>
         <div x-data="treeBrowser()" class="h-full">
             <div class="overflow-auto flex-1 p-2 h-full" @click="onTreeClick" @contextmenu.prevent="onTreeRightClick" x-html="treeHtml"></div>
@@ -210,24 +466,24 @@
                         x-transition:leave="transition ease-in duration-75"
                         x-transition:leave-start="opacity-100 scale-100"
                         x-transition:leave-end="opacity-0 scale-95"
-                        class="fixed z-[var(--z-context-menu)] min-w-[180px] bg-white rounded-xl shadow-2xl border border-gray-100 py-1 overflow-hidden"
+                        class="fixed z-[var(--z-context-menu)] min-w-[180px] bg-surface rounded-xl shadow-2xl border border-line-soft py-1 overflow-hidden"
                         :style="`left: ${contextMenu.x}px; top: ${contextMenu.y}px;`"
                 >
-                    <div x-show="contextMenu.targetNode" class="px-3 py-2 border-b border-gray-50 bg-gray-50/50">
-                        <p class="text-xs text-gray-400 truncate" x-text="contextMenu.targetNode?.name || ''"></p>
+                    <div x-show="contextMenu.targetNode" class="px-3 py-2 border-b border-line-soft bg-surface2">
+                        <p class="text-xs text-ink-4 truncate" x-text="contextMenu.targetNode?.name || ''"></p>
                     </div>
                     <template x-for="(item, index) in contextMenu.items" :key="index">
                         <div>
-                            <div x-show="item.divider" class="my-1 border-t border-gray-100"></div>
+                            <div x-show="item.divider" class="my-1 border-t border-line-soft"></div>
                             <button
                                     x-show="!item.divider"
                                     @click="executeContextAction(item.action)"
                                     class="w-full text-left px-3 py-2.5 text-sm flex items-center space-x-2 transition-colors"
                                     :class="{
-                                'text-gray-700 hover:bg-blue-50 hover:text-blue-600': !item.danger && !item.highlight,
-                                'text-red-500 hover:bg-red-50': item.danger,
-                                'text-blue-600 bg-blue-50 font-medium': item.highlight,
-                                'hover:bg-gray-50': !item.danger && !item.highlight
+                                'text-ink-2 hover:bg-accent-soft hover:text-accent': !item.danger && !item.highlight,
+                                'text-danger hover:bg-danger-soft': item.danger,
+                                'text-accent bg-accent-soft font-medium': item.highlight,
+                                'hover:bg-hover': !item.danger && !item.highlight
                             }"
                             >
                                 <span x-text="item.label"></span>
@@ -244,7 +500,7 @@
             class="absolute left-0 top-1/2 -translate-y-1/2 z-30 transition-all duration-300"
             :class="sidebarCollapsed ? 'ml-0' : 'ml-64'"
     >
-        <div class="bg-white border border-gray-200 rounded-r-lg p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-all shadow-sm">
+        <div class="bg-surface border border-line rounded-r-lg p-1 text-ink-4 hover:text-ink-2 hover:bg-hover transition-all shadow-sm">
             <i :class="sidebarCollapsed ? 'fas fa-chevron-right' : 'fas fa-chevron-left'" class="text-xs"></i>
         </div>
     </button>
@@ -252,19 +508,19 @@
     <!-- ============================
          [LAYOUT] 主编辑区（单/双页共用 · 无动画）
          ============================ -->
-    <main class="flex-1 overflow-hidden bg-gray-50 flex flex-col">
+    <main class="flex-1 overflow-hidden bg-surface2 flex flex-col">
         <div class="flex h-full">
             <!-- =======================
                  编辑区（永远存在）
                  ======================= -->
             <div class="flex flex-col min-w-0 h-full"
                  :class="viewMode === 'single' ? 'w-full' : 'w-1/2'">
-                <div class="h-11 bg-white border-b border-gray-200 flex items-center px-4 shadow-sm">
+                <div class="h-11 bg-surface border-b border-line flex items-center px-4 shadow-sm">
                     <template x-if="currentFile">
                         <div class="flex items-center h-5 relative group">
                             <!-- MD 文件：动态胶囊 -->
                             <i x-show="isMarkdownType(currentFile.id) && currentFile.fmStatus === null"
-                               class="fas fa-code text-gray-400 text-[10px] pointer-events-none select-none"
+                               class="fas fa-code text-ink-4 text-[10px] pointer-events-none select-none"
                             ></i>
                             <div
                                     x-show="isMarkdownType(currentFile.id) && (currentFile.fmStatus === 1 || currentFile.fmStatus === -1)"
@@ -293,20 +549,20 @@
                                  x-transition:leave="transition ease-in duration-100"
                                  x-transition:leave-start="opacity-100 translate-y-0"
                                  x-transition:leave-end="opacity-0 translate-y-1"
-                                 class="absolute top-full left-0 mt-2 w-[28rem] bg-white rounded-xl shadow-lg border border-gray-100 p-5 z-50 text-sm
+                                 class="absolute top-full left-0 mt-2 w-[28rem] bg-surface rounded-xl shadow-lg border border-line-soft p-5 z-50 text-sm
                                     before:content-[''] before:absolute before:-top-2 before:left-6
                                     before:border-8 before:border-transparent before:border-b-white
                                     max-h-[80vh] overflow-y-auto">
 
-                                <div class="pt-4 pb-3 mb-3 border-b border-gray-100">
+                                <div class="pt-4 pb-3 mb-3 border-b border-line-soft">
                                     <div class="flex items-center space-x-1.5 mb-2">
                                         <i :class="{
-                                        'fas fa-check text-green-500': currentFile.fmStatus === 1,
+                                        'fas fa-check text-success': currentFile.fmStatus === 1,
                                         'fas fa-exclamation-triangle text-yellow-500': currentFile.fmStatus === -1
                                     }" class="text-[10px]"></i>
-                                        <span class="text-xs font-medium text-gray-700">解析日志</span>
+                                        <span class="text-xs font-medium text-ink-2">解析日志</span>
                                     </div>
-                                    <div class="text-xs text-gray-600 bg-gray-50 p-3 rounded-lg
+                                    <div class="text-xs text-ink-2 bg-surface2 p-3 rounded-lg
                                     max-h-48 overflow-y-auto
                                     whitespace-pre-line break-words leading-relaxed"
                                          x-html="currentFile.fmLog || '格式解析正确'">
@@ -314,13 +570,13 @@
                                 </div>
 
                                 <div class="mb-4">
-                                    <div class="text-xs text-gray-500 leading-relaxed mb-3">
+                                    <div class="text-xs text-ink-3 leading-relaxed mb-3">
                                         <p class="mb-1.5"><strong>什么是 Front Matter？</strong><br>它是位于 Markdown 文件顶部的配置区块，用于定义文章的元数据（如标题、日期）。这些变量可以在渲染时被模板读取，从而控制页面的布局、URL 和行为。</p>
                                         <p class="mb-1.5"><strong>GitHub Pages 兼容性</strong><br>完全兼容 GitHub Pages (Jekyll) 及 Hugo、Hexo、VuePress 等主流静态站点生成器，同时兼容 Obsidian、Logseq、Foam 等双链笔记软件的 FM 格式，存量笔记导入无需修改。</p>
                                         <p><strong>示例</strong></p>
                                     </div>
-                                    <div class="mt-3 p-2 bg-gray-50 rounded border border-gray-200">
-                                        <pre class="text-[10px] text-gray-700 overflow-x-auto"><code>---
+                                    <div class="mt-3 p-2 bg-surface2 rounded border border-line">
+                                        <pre class="text-[10px] text-ink-2 overflow-x-auto"><code>---
 layout: post
 title: "Markdown 编辑器指南"
 date: 2026-07-11 14:30:00 +0800
@@ -338,42 +594,42 @@ cover: /assets/images/cover.jpg
 从这里开始编写你的 Markdown 内容...</code></pre>
                                     </div>
 
-                                    <p class="text-[10px] text-gray-400 mt-2 italic">提示：修改 Front Matter 后请手动保存，确保配置生效。</p>
+                                    <p class="text-[10px] text-ink-4 mt-2 italic">提示：修改 Front Matter 后请手动保存，确保配置生效。</p>
                                 </div>
                             </div>
 
-                            <i x-show="!isMarkdownType(currentFile.id)" class="fas fa-code text-gray-400 text-xs flex-shrink-0"></i>
+                            <i x-show="!isMarkdownType(currentFile.id)" class="fas fa-code text-ink-4 text-xs flex-shrink-0"></i>
                         </div>
                     </template>
 
-                    <span x-show="currentFile" class="text-xs text-gray-500 font-medium truncate ml-2 leading-none" x-text="formatPath(currentFile?.id || '')"></span>
+                    <span x-show="currentFile" class="text-xs text-ink-3 font-medium truncate ml-2 leading-none" x-text="formatPath(currentFile?.id || '')"></span>
                     <button
                             x-show="currentFile"
                             @click="copyPath()"
-                            class="flex-shrink-0 p-1 ml-2 rounded text-gray-400 hover:text-blue-500 hover:bg-blue-50 transition-colors duration-150"
+                            class="flex-shrink-0 p-1 ml-2 rounded text-ink-4 hover:text-accent hover:bg-accent-soft transition-colors duration-150"
                             title="复制路径"
                     ><i class="fas fa-copy text-xs"></i></button>
 
                     <template x-if="currentFile">
                         <button @click="closeCurrentFileAndDeselect()"
-                                class="text-[10px] text-gray-400 hover:text-red-500 flex-shrink-0 ml-auto p-1 rounded hover:bg-gray-100 transition-colors duration-150"
+                                class="text-[10px] text-ink-4 hover:text-danger flex-shrink-0 ml-auto p-1 rounded hover:bg-hover transition-colors duration-150"
                                 title="关闭文档">
                             <i class="fas fa-times"></i>
                         </button>
                     </template>
                     <template x-if="!currentFile">
-                        <div class="flex items-center h-5 w-full text-gray-400 select-none">
+                        <div class="flex items-center h-5 w-full text-ink-4 select-none">
                             <i class="fas fa-code text-xs flex-shrink-0"></i>
                             <span class="text-xs font-medium ml-2 leading-none truncate">...</span>
-                            <span class="ml-auto text-[10px] text-gray-400 flex-shrink-0">Edit</span>
+                            <span class="ml-auto text-[10px] text-ink-4 flex-shrink-0">Edit</span>
                         </div>
                     </template>
                 </div>
-                <div class="flex-1 overflow-hidden bg-white">
+                <div class="flex-1 overflow-hidden bg-surface">
                     <textarea
                             x-ref="editor"
                             x-model="editorContent"
-                            class="editor w-full h-full bg-white text-gray-800 p-6 resize-none focus:outline-none placeholder-gray-300"
+                            class="editor w-full h-full bg-editor text-ink p-6 resize-none focus:outline-none placeholder-ink-4"
                             placeholder="在这里输入内容..."
                             spellcheck="false"
                     ></textarea>
@@ -383,13 +639,13 @@ cover: /assets/images/cover.jpg
             <!-- =======================
                  预览区（条件展开 · 无动画）
                  ======================= -->
-            <div class="flex flex-col min-w-0 h-full border-l border-gray-200 bg-white"
+            <div class="flex flex-col min-w-0 h-full border-l border-line bg-surface"
                  :class="viewMode === 'split' ? 'w-1/2' : 'w-0 overflow-hidden pointer-events-none'">
-                <div class="h-11 bg-gray-50 border-b border-gray-200 flex items-center px-4">
-                    <i class="fas fa-eye text-gray-400 mr-2 text-xs"></i>
-                    <span class="text-xs text-gray-500 font-medium">实时预览</span>
+                <div class="h-11 bg-surface2 border-b border-line flex items-center px-4">
+                    <i class="fas fa-eye text-ink-4 mr-2 text-xs"></i>
+                    <span class="text-xs text-ink-3 font-medium">实时预览</span>
                     <div class="flex-1"></div>
-                    <span class="text-[10px] text-gray-300">Live Preview</span>
+                    <span class="text-[10px] text-ink-4">Live Preview</span>
                 </div>
                 <div class="flex-1 overflow-hidden">
                     <iframe x-ref="previewFrame"
@@ -420,9 +676,9 @@ cover: /assets/images/cover.jpg
                     @click="toast.show = false"
                     class="pointer-events-auto max-w-sm w-full rounded-xl p-4 shadow-lg cursor-pointer text-white"
                     :class="{
-                    'bg-emerald-500': toast.type === 'success',
-                    'bg-red-500': toast.type === 'error',
-                    'bg-blue-500': toast.type === 'info'
+                    'bg-success': toast.type === 'success',
+                    'bg-danger': toast.type === 'error',
+                    'bg-accent': toast.type === 'info'
                 }"
             >
                 <div class="flex items-center">
@@ -443,17 +699,17 @@ cover: /assets/images/cover.jpg
      ============================ -->
 <template x-teleport="body">
     <div x-show="confirmDialog.show" x-cloak class="fixed inset-0 z-[var(--z-normal-modal)] overflow-y-auto">
-        <div x-show="confirmDialog.show" x-transition class="fixed inset-0 bg-black/40 backdrop-blur-sm" @click="confirmDialog.onCancel()"></div>
+        <div x-show="confirmDialog.show" x-transition class="fixed inset-0 bg-scrim backdrop-blur-sm" @click="confirmDialog.onCancel()"></div>
         <div class="flex min-h-full items-center justify-center p-4">
-            <div x-show="confirmDialog.show" x-transition class="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6" @click.stop>
-                <div class="w-14 h-14 rounded-full mx-auto mb-4 flex items-center justify-center" :class="{ 'bg-red-50': confirmDialog.type === 'danger', 'bg-amber-50': confirmDialog.type === 'warning', 'bg-blue-50': confirmDialog.type === 'info' }">
-                    <i class="text-xl" :class="{ 'fas fa-exclamation-triangle text-red-500': confirmDialog.type === 'danger', 'fas fa-exclamation-circle text-amber-500': confirmDialog.type === 'warning', 'fas fa-info-circle text-blue-500': confirmDialog.type === 'info' }"></i>
+            <div x-show="confirmDialog.show" x-transition class="relative bg-surface rounded-2xl shadow-2xl w-full max-w-sm p-6" @click.stop>
+                <div class="w-14 h-14 rounded-full mx-auto mb-4 flex items-center justify-center" :class="{ 'bg-danger-soft': confirmDialog.type === 'danger', 'bg-warn-soft': confirmDialog.type === 'warning', 'bg-accent-soft': confirmDialog.type === 'info' }">
+                    <i class="text-xl" :class="{ 'fas fa-exclamation-triangle text-danger': confirmDialog.type === 'danger', 'fas fa-exclamation-circle text-warn': confirmDialog.type === 'warning', 'fas fa-info-circle text-accent': confirmDialog.type === 'info' }"></i>
                 </div>
-                <h3 class="text-lg font-bold text-gray-800 text-center mb-2" x-text="confirmDialog.title"></h3>
-                <p class="text-sm text-gray-500 text-center mb-6" x-text="confirmDialog.message"></p>
+                <h3 class="text-lg font-bold text-ink text-center mb-2" x-text="confirmDialog.title"></h3>
+                <p class="text-sm text-ink-3 text-center mb-6" x-text="confirmDialog.message"></p>
                 <div class="flex space-x-3">
-                    <button @click="confirmDialog.onConfirm()" class="flex-1 py-2.5 px-4 rounded-lg text-white font-medium text-sm transition-colors" :class="{ 'bg-red-500 hover:bg-red-600': confirmDialog.type === 'danger', 'bg-amber-500 hover:bg-amber-600': confirmDialog.type === 'warning', 'bg-blue-500 hover:bg-blue-600': confirmDialog.type === 'info' }" x-text="confirmDialog.confirmText"></button>
-                    <button @click="confirmDialog.onCancel()" class="flex-1 py-2.5 px-4 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors font-medium text-sm" x-text="confirmDialog.cancelText"></button>
+                    <button @click="confirmDialog.onConfirm()" class="flex-1 py-2.5 px-4 rounded-lg text-white font-medium text-sm transition-colors" :class="{ 'bg-danger hover:bg-danger-strong': confirmDialog.type === 'danger', 'bg-warn hover:bg-warn-strong': confirmDialog.type === 'warning', 'bg-accent hover:bg-accent-strong': confirmDialog.type === 'info' }" x-text="confirmDialog.confirmText"></button>
+                    <button @click="confirmDialog.onCancel()" class="flex-1 py-2.5 px-4 border border-line rounded-lg text-ink-2 hover:bg-hover transition-colors font-medium text-sm" x-text="confirmDialog.cancelText"></button>
                 </div>
             </div>
         </div>
@@ -465,25 +721,25 @@ cover: /assets/images/cover.jpg
      ============================ -->
 <template x-teleport="body">
     <div x-show="promptDialog.show" x-cloak class="fixed inset-0 z-[var(--z-normal-modal)] overflow-y-auto">
-        <div x-show="promptDialog.show" x-transition class="fixed inset-0 bg-black/40 backdrop-blur-sm" @click="promptDialog.onCancel()"></div>
+        <div x-show="promptDialog.show" x-transition class="fixed inset-0 bg-scrim backdrop-blur-sm" @click="promptDialog.onCancel()"></div>
         <div class="flex min-h-full items-center justify-center p-4">
-            <div x-show="promptDialog.show" x-transition class="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6" @click.stop>
-                <div class="w-14 h-14 rounded-full mx-auto mb-4 flex items-center justify-center bg-blue-50">
-                    <i :class="promptDialog.icon || 'fas fa-edit'" class="text-xl text-blue-500"></i>
+            <div x-show="promptDialog.show" x-transition class="relative bg-surface rounded-2xl shadow-2xl w-full max-w-sm p-6" @click.stop>
+                <div class="w-14 h-14 rounded-full mx-auto mb-4 flex items-center justify-center bg-accent-soft">
+                    <i :class="promptDialog.icon || 'fas fa-edit'" class="text-xl text-accent"></i>
                 </div>
-                <h3 class="text-lg font-bold text-gray-800 text-center mb-2" x-text="promptDialog.title"></h3>
-                <p class="text-sm text-gray-500 text-center mb-4" x-text="promptDialog.message"></p>
+                <h3 class="text-lg font-bold text-ink text-center mb-2" x-text="promptDialog.title"></h3>
+                <p class="text-sm text-ink-3 text-center mb-4" x-text="promptDialog.message"></p>
                 <input
                         type="text"
                         x-ref="promptInput"
                         x-model="promptDialog.value"
                         @keydown.enter="promptDialog.onConfirm()"
-                        class="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-6"
+                        class="w-full px-4 py-2.5 border border-line rounded-lg text-sm text-ink focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-6"
                         :placeholder="promptDialog.placeholder"
                 >
                 <div class="flex space-x-3">
-                    <button @click="promptDialog.onConfirm()" class="flex-1 py-2.5 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium text-sm transition-colors">确认</button>
-                    <button @click="promptDialog.onCancel()" class="flex-1 py-2.5 px-4 border border-gray-200 text-gray-600 hover:bg-gray-50 rounded-lg font-medium text-sm transition-colors">取消</button>
+                    <button @click="promptDialog.onConfirm()" class="flex-1 py-2.5 px-4 bg-accent hover:bg-accent-strong text-white rounded-lg font-medium text-sm transition-colors">确认</button>
+                    <button @click="promptDialog.onCancel()" class="flex-1 py-2.5 px-4 border border-line text-ink-2 hover:bg-hover rounded-lg font-medium text-sm transition-colors">取消</button>
                 </div>
             </div>
         </div>
@@ -495,22 +751,22 @@ cover: /assets/images/cover.jpg
      ============================ -->
 <template x-teleport="body">
     <div x-show="historyDialog.show" x-cloak class="fixed inset-0 z-[var(--z-history)] overflow-y-auto">
-        <div x-show="historyDialog.show" x-transition class="fixed inset-0 bg-black/50 backdrop-blur-sm" @click="closeHistory()"></div>
+        <div x-show="historyDialog.show" x-transition class="fixed inset-0 bg-scrim backdrop-blur-sm" @click="closeHistory()"></div>
         <div class="flex min-h-full items-center justify-center p-4">
-            <div x-show="historyDialog.show" x-transition class="relative bg-white rounded-2xl shadow-2xl w-full max-w-6xl h-[80vh] flex flex-col overflow-hidden" @click.stop>
+            <div x-show="historyDialog.show" x-transition class="relative bg-surface rounded-2xl shadow-2xl w-full max-w-6xl h-[80vh] flex flex-col overflow-hidden" @click.stop>
                 <!-- 标题栏 -->
-                <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+                <div class="flex items-center justify-between px-6 py-4 border-b border-line-soft flex-shrink-0">
                     <div class="flex items-center space-x-3">
                         <!-- 图标容器：紫 → 蓝 -->
-                        <div class="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
-                            <i class="fas fa-history text-blue-500"></i>
+                        <div class="w-10 h-10 rounded-full bg-accent-soft flex items-center justify-center">
+                            <i class="fas fa-history text-accent"></i>
                         </div>
                         <div>
-                            <h3 class="text-lg font-bold text-gray-800">历史版本</h3>
-                            <p class="text-xs text-gray-400 truncate max-w-xs" x-text="historyDialog.filePath"></p>
+                            <h3 class="text-lg font-bold text-ink">历史版本</h3>
+                            <p class="text-xs text-ink-4 truncate max-w-xs" x-text="historyDialog.filePath"></p>
                         </div>
                     </div>
-                    <button @click="closeHistory()" class="p-2 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors">
+                    <button @click="closeHistory()" class="p-2 rounded-lg text-ink-4 hover:bg-hover hover:text-ink-2 transition-colors">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
@@ -518,9 +774,9 @@ cover: /assets/images/cover.jpg
                 <!-- 1:3 分栏主体 -->
                 <div class="flex flex-1 overflow-hidden">
                     <!-- 左侧：历史列表 -->
-                    <div class="w-1/4 border-r border-gray-100 flex flex-col bg-gray-50/50">
-                        <div class="h-12 px-4 border-b border-gray-100 flex items-center justify-between">
-                            <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">版本列表</span>
+                    <div class="w-1/4 border-r border-line-soft flex flex-col bg-surface2">
+                        <div class="h-12 px-4 border-b border-line-soft flex items-center justify-between">
+                            <span class="text-xs font-semibold text-ink-3 uppercase tracking-wider">版本列表</span>
                             <span x-show="historyDialog.loading" class="loading-spinner"></span>
                         </div>
 
@@ -530,33 +786,33 @@ cover: /assets/images/cover.jpg
                                         @click="selectHistoryItem(item)"
                                         class="w-full text-left px-3 py-2.5 rounded-lg transition-colors border"
                                         :class="historyDialog.selectedItem?.version === item.version
-                                        ? 'bg-blue-50 border-blue-200'
-                                        : 'hover:bg-gray-100 border-transparent'"
+                                        ? 'bg-accent-soft border-accent-line'
+                                        : 'hover:bg-hover border-transparent'"
                                 >
                                     <div class="flex items-center justify-between mb-1">
-                                        <span class="text-xs font-mono text-blue-600 font-medium" x-text="'v' + item.version"></span>
-                                        <span class="text-xs text-gray-400" x-text="item.create_time"></span>
+                                        <span class="text-xs font-mono text-accent font-medium" x-text="'v' + item.version"></span>
+                                        <span class="text-xs text-ink-4" x-text="item.create_time"></span>
                                     </div>
                                     <div class="flex justify-end">
-                                        <span class="text-xs text-gray-500" x-text="item.lines + ' 行改动'"></span>
+                                        <span class="text-xs text-ink-3" x-text="item.lines + ' 行改动'"></span>
                                     </div>
                                 </button>
                             </template>
 
                             <div x-show="historyDialog.historyList.length === 0 && !historyDialog.loading"
-                                 class="px-3 py-4 text-xs text-gray-400 text-center">
+                                 class="px-3 py-4 text-xs text-ink-4 text-center">
                                 暂无历史版本
                             </div>
                         </div>
                     </div>
 
                     <!-- 右侧：Diff 预览 -->
-                    <div class="w-3/4 flex flex-col bg-white">
-                        <div class="h-12 px-4 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
+                    <div class="w-3/4 flex flex-col bg-surface">
+                        <div class="h-12 px-4 border-b border-line-soft flex items-center justify-between flex-shrink-0">
                             <div class="flex items-center space-x-2">
-                                <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">差异对比</span>
+                                <span class="text-xs font-semibold text-ink-3 uppercase tracking-wider">差异对比</span>
                                 <span x-show="historyDialog.selectedItem"
-                                      class="text-xs text-gray-400"
+                                      class="text-xs text-ink-4"
                                       x-text="'v' + historyDialog.selectedItem?.version"></span>
                             </div>
 
@@ -567,7 +823,7 @@ cover: /assets/images/cover.jpg
                                         @click="revertHistory()"
                                         :disabled="historyDialog.diffLoading"
                                         class="flex items-center space-x-1.5 px-3 py-1.5
-                                           bg-blue-500 hover:bg-blue-600
+                                           bg-accent hover:bg-accent-strong
                                            disabled:opacity-50 text-white
                                            text-xs font-medium rounded-lg
                                            transition-opacity duration-200"
@@ -579,7 +835,7 @@ cover: /assets/images/cover.jpg
                             </div>
                         </div>
 
-                        <div class="flex-1 overflow-y-auto p-4 bg-gray-50/30">
+                        <div class="flex-1 overflow-y-auto p-4 bg-surface2">
                             <div x-html="historyDialog.diffHtml"></div>
                         </div>
                     </div>
@@ -593,21 +849,21 @@ cover: /assets/images/cover.jpg
      ============================ -->
 <template x-teleport="body">
     <div x-show="shareDialog.show" x-cloak class="fixed inset-0 z-[var(--z-modal-share)] overflow-y-auto">
-        <div x-show="shareDialog.show" x-transition class="fixed inset-0 bg-black/50 backdrop-blur-sm" @click="closeShareDialog()"></div>
+        <div x-show="shareDialog.show" x-transition class="fixed inset-0 bg-scrim backdrop-blur-sm" @click="closeShareDialog()"></div>
         <div class="flex min-h-full items-center justify-center p-4">
-            <div x-show="shareDialog.show" x-transition class="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden" @click.stop>
+            <div x-show="shareDialog.show" x-transition class="relative bg-surface rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden" @click.stop>
                 <!-- 标题栏 -->
-                <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                <div class="flex items-center justify-between px-6 py-4 border-b border-line-soft">
                     <div class="flex items-center space-x-3">
-                        <div class="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
-                            <i class="fas fa-share-alt text-blue-500"></i>
+                        <div class="w-10 h-10 rounded-full bg-accent-soft flex items-center justify-center">
+                            <i class="fas fa-share-alt text-accent"></i>
                         </div>
                         <div>
-                            <h3 class="text-lg font-bold text-gray-800">链接分享</h3>
-                            <p class="text-xs text-gray-400 truncate max-w-xs" x-text="shareDialog.filename"></p>
+                            <h3 class="text-lg font-bold text-ink">链接分享</h3>
+                            <p class="text-xs text-ink-4 truncate max-w-xs" x-text="shareDialog.filename"></p>
                         </div>
                     </div>
-                    <button @click="closeShareDialog()" class="p-2 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors">
+                    <button @click="closeShareDialog()" class="p-2 rounded-lg text-ink-4 hover:bg-hover hover:text-ink-2 transition-colors">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
@@ -616,9 +872,9 @@ cover: /assets/images/cover.jpg
                     <!-- ✅ Loading 遮罩 -->
                     <div x-show="shareDialog.loading"
                          x-transition.opacity.duration.200
-                         class="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-10"
+                         class="absolute inset-0 bg-veil backdrop-blur-sm flex items-center justify-center z-10"
                          style="pointer-events: auto;">
-                        <div class="flex items-center space-x-3 text-gray-500">
+                        <div class="flex items-center space-x-3 text-ink-3">
                             <div class="loading-spinner"></div>
                             <span>正在处理...</span>
                         </div>
@@ -627,12 +883,12 @@ cover: /assets/images/cover.jpg
                     <!-- ✅ Error 遮罩 -->
                     <div x-show="shareDialog.error"
                          x-transition.opacity.duration.200
-                         class="absolute inset-0 bg-white/90 flex flex-col items-center justify-center z-10"
+                         class="absolute inset-0 bg-veil flex flex-col items-center justify-center z-10"
                          style="pointer-events: auto;">
-                        <div class="w-14 h-14 rounded-full bg-red-50 flex items-center justify-center mb-4">
-                            <i class="fas fa-exclamation-triangle text-red-500 text-xl"></i>
+                        <div class="w-14 h-14 rounded-full bg-danger-soft flex items-center justify-center mb-4">
+                            <i class="fas fa-exclamation-triangle text-danger text-xl"></i>
                         </div>
-                        <p class="text-red-500" x-text="shareDialog.error"></p>
+                        <p class="text-danger" x-text="shareDialog.error"></p>
                     </div>
 
                     <!-- ✅ 正常内容（永远渲染，永不 x-show） -->
@@ -640,23 +896,23 @@ cover: /assets/images/cover.jpg
                          class="transition-opacity duration-200">
 
                         <!-- 状态指示器 -->
-                        <div class="flex items-center justify-between mb-6 pb-6 border-b border-gray-100">
+                        <div class="flex items-center justify-between mb-6 pb-6 border-b border-line-soft">
                             <div class="flex items-center space-x-3">
                                 <div class="w-10 h-10 rounded-full flex items-center justify-center"
-                                     :class="shareDialog.isShared ? 'bg-green-50' : 'bg-gray-100'">
+                                     :class="shareDialog.isShared ? 'bg-success-soft' : 'bg-surface3'">
                                     <i class="fas"
-                                       :class="shareDialog.isShared ? 'fa-check text-green-500' : 'fa-times text-gray-400'"></i>
+                                       :class="shareDialog.isShared ? 'fa-check text-success' : 'fa-times text-ink-4'"></i>
                                 </div>
                                 <div>
-                                    <p class="font-medium text-gray-800" x-text="shareDialog.isShared ? '已开启分享' : '未开启分享'"></p>
-                                    <p class="text-xs text-gray-500" x-text="shareDialog.isShared ? '任何人通过链接均可访问' : '仅你自己可见'"></p>
+                                    <p class="font-medium text-ink" x-text="shareDialog.isShared ? '已开启分享' : '未开启分享'"></p>
+                                    <p class="text-xs text-ink-3" x-text="shareDialog.isShared ? '任何人通过链接均可访问' : '仅你自己可见'"></p>
                                 </div>
                             </div>
                             <button
                                     @click="toggleShare()"
                                     :disabled="shareDialog.loading"
                                     class="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                                    :class="shareDialog.isShared ? 'bg-red-50 text-red-500 hover:bg-red-100' : 'bg-blue-500 text-white hover:bg-blue-600'">
+                                    :class="shareDialog.isShared ? 'bg-danger-soft text-danger hover:bg-danger-soft' : 'bg-accent text-white hover:bg-accent-strong'">
                                 <i class="fas mr-2" :class="shareDialog.isShared ? 'fa-ban' : 'fa-share-alt'"></i>
                                 <span x-text="shareDialog.isShared ? '关闭分享' : '开启分享'"></span>
                             </button>
@@ -666,39 +922,39 @@ cover: /assets/images/cover.jpg
                         <div class="transition-opacity duration-200"
                              :style="shareDialog.isShared ? 'opacity: 1; pointer-events: auto;' : 'opacity: 0.55; pointer-events: none;'">
 
-                            <label class="block text-sm font-medium text-gray-700 mb-2">分享链接</label>
+                            <label class="block text-sm font-medium text-ink-2 mb-2">分享链接</label>
 
                             <div class="relative">
                                 <div class="flex items-center space-x-2">
                                     <input type="text" readonly
                                            :value="shareDialog.isShared ? location.origin + shareDialog.shareUrl : '开启分享后即可生成链接'"
-                                           class="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-600 focus:outline-none truncate"
+                                           class="flex-1 px-4 py-2.5 bg-surface2 border border-line rounded-lg text-sm text-ink-2 focus:outline-none truncate"
                                            tabindex="-1">
                                     <button @click="copyShareLink()"
                                             :disabled="!shareDialog.isShared"
                                             class="px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex-shrink-0"
-                                            :class="shareDialog.isShared ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-gray-200 text-gray-400 cursor-not-allowed'">
+                                            :class="shareDialog.isShared ? 'bg-accent hover:bg-accent-strong text-white' : 'bg-surface3 text-ink-4 cursor-not-allowed'">
                                         <i class="fas fa-copy mr-2"></i>复制
                                     </button>
                                     <button @click="viewSharePage()"
                                             :disabled="!shareDialog.isShared"
                                             class="px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex-shrink-0"
-                                            :class="shareDialog.isShared ? 'bg-gray-100 hover:bg-gray-200 text-gray-700' : 'bg-gray-100 text-gray-400 cursor-not-allowed'">
+                                            :class="shareDialog.isShared ? 'bg-surface3 hover:bg-hover text-ink-2' : 'bg-surface3 text-ink-4 cursor-not-allowed'">
                                         <i class="fas fa-external-link-alt mr-2"></i>打开
                                     </button>
                                 </div>
 
                                 <!-- 未开启时的遮罩 -->
                                 <div x-show="!shareDialog.isShared"
-                                     class="absolute inset-0 flex items-center justify-center bg-white/70 backdrop-blur-[2px] rounded-lg pointer-events-none">
-                                    <div class="flex items-center space-x-2 text-gray-400 text-sm">
+                                     class="absolute inset-0 flex items-center justify-center bg-veil backdrop-blur-[2px] rounded-lg pointer-events-none">
+                                    <div class="flex items-center space-x-2 text-ink-4 text-sm">
                                         <i class="fas fa-lock"></i>
                                         <span>分享未开启</span>
                                     </div>
                                 </div>
                             </div>
 
-                            <p class="mt-3 text-xs text-gray-500 flex items-center">
+                            <p class="mt-3 text-xs text-ink-3 flex items-center">
                                 <i class="fas fa-info-circle mr-2"></i>
                                 <span x-text="shareDialog.isShared ? '任何拥有此链接的人都可以查看该文件。' : '点击“开启分享”后，即可复制和访问分享链接。'"></span>
                             </p>
@@ -724,7 +980,7 @@ cover: /assets/images/cover.jpg
                     x-transition:leave="transition ease-in duration-150"
                     x-transition:leave-start="opacity-100"
                     x-transition:leave-end="opacity-0"
-                    class="fixed inset-0 bg-black/50 backdrop-blur-sm"
+                    class="fixed inset-0 bg-scrim backdrop-blur-sm"
                     @click="closeChangePwdModal()"
             ></div>
 
@@ -737,19 +993,19 @@ cover: /assets/images/cover.jpg
                         x-transition:leave="transition ease-in duration-150"
                         x-transition:leave-start="opacity-100 scale-100"
                         x-transition:leave-end="opacity-0 scale-95"
-                        class="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+                        class="relative bg-surface rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
                         @click.stop
                         @keydown.escape="closeChangePwdModal()"
                 >
                     <!-- 标题栏 -->
-                    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                    <div class="flex items-center justify-between px-6 py-4 border-b border-line-soft">
                         <div class="flex items-center space-x-3">
-                            <div class="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
-                                <i class="fas fa-key text-blue-500"></i>
+                            <div class="w-10 h-10 rounded-full bg-accent-soft flex items-center justify-center">
+                                <i class="fas fa-key text-accent"></i>
                             </div>
-                            <h3 class="text-lg font-bold text-gray-800">修改密码</h3>
+                            <h3 class="text-lg font-bold text-ink">修改密码</h3>
                         </div>
-                        <button @click="closeChangePwdModal()" class="p-2 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors">
+                        <button @click="closeChangePwdModal()" class="p-2 rounded-lg text-ink-4 hover:bg-hover hover:text-ink-2 transition-colors">
                             <i class="fas fa-times"></i>
                         </button>
                     </div>
@@ -761,7 +1017,7 @@ cover: /assets/images/cover.jpg
                             <label for="old-pwd" class="sr-only">旧密码</label>
                             <div class="relative">
                                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <i class="fas fa-lock text-gray-400"></i>
+                                    <i class="fas fa-lock text-ink-4"></i>
                                 </div>
                                 <input
                                         id="old-pwd"
@@ -770,7 +1026,7 @@ cover: /assets/images/cover.jpg
                                         required
                                         minlength="5"
                                         maxlength="32"
-                                        class="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
+                                        class="w-full pl-10 pr-12 py-3 border border-line rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-accent outline-none transition"
                                         autocomplete="current-password"
                                         data-lpignore="true"
                                         placeholder="请输入旧密码"
@@ -778,7 +1034,7 @@ cover: /assets/images/cover.jpg
                                 <button
                                         type="button"
                                         @click="changePwdForm.showOldPwd = !changePwdForm.showOldPwd"
-                                        class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                                        class="absolute inset-y-0 right-0 pr-3 flex items-center text-ink-4 hover:text-ink-2"
                                 >
                                     <i :class="changePwdForm.showOldPwd ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
                                 </button>
@@ -790,7 +1046,7 @@ cover: /assets/images/cover.jpg
                             <label for="new-pwd" class="sr-only">新密码</label>
                             <div class="relative">
                                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <i class="fas fa-lock text-gray-400"></i>
+                                    <i class="fas fa-lock text-ink-4"></i>
                                 </div>
                                 <input
                                         id="new-pwd"
@@ -799,7 +1055,7 @@ cover: /assets/images/cover.jpg
                                         required
                                         minlength="5"
                                         maxlength="32"
-                                        class="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
+                                        class="w-full pl-10 pr-12 py-3 border border-line rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-accent outline-none transition"
                                         autocomplete="new-password"
                                         data-lpignore="true"
                                         placeholder="请输入新密码（5-32位）"
@@ -807,7 +1063,7 @@ cover: /assets/images/cover.jpg
                                 <button
                                         type="button"
                                         @click="changePwdForm.showNewPwd = !changePwdForm.showNewPwd"
-                                        class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                                        class="absolute inset-y-0 right-0 pr-3 flex items-center text-ink-4 hover:text-ink-2"
                                 >
                                     <i :class="changePwdForm.showNewPwd ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
                                 </button>
@@ -819,7 +1075,7 @@ cover: /assets/images/cover.jpg
                             <label for="confirm-pwd" class="sr-only">确认新密码</label>
                             <div class="relative">
                                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <i class="fas fa-lock text-gray-400"></i>
+                                    <i class="fas fa-lock text-ink-4"></i>
                                 </div>
                                 <input
                                         id="confirm-pwd"
@@ -828,28 +1084,28 @@ cover: /assets/images/cover.jpg
                                         required
                                         minlength="5"
                                         maxlength="32"
-                                        class="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
+                                        class="w-full pl-10 pr-12 py-3 border border-line rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-accent outline-none transition"
                                         autocomplete="new-password"
                                         data-lpignore="true"
                                         placeholder="请再次输入新密码"
                                 >
                             </div>
                             <!-- 前端简单校验提示 -->
-                            <p x-show="changePwdForm.newPwd && changePwdForm.confirmPwd && changePwdForm.newPwd !== changePwdForm.confirmPwd" class="mt-1 text-xs text-red-500">
+                            <p x-show="changePwdForm.newPwd && changePwdForm.confirmPwd && changePwdForm.newPwd !== changePwdForm.confirmPwd" class="mt-1 text-xs text-danger">
                                 两次输入的密码不一致
                             </p>
                         </div>
                     </div>
 
                     <!-- 底部按钮 -->
-                    <div class="px-6 py-4 border-t border-gray-100 flex justify-end space-x-3">
-                        <button @click="closeChangePwdModal()" class="px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
+                    <div class="px-6 py-4 border-t border-line-soft flex justify-end space-x-3">
+                        <button @click="closeChangePwdModal()" class="px-4 py-2.5 text-sm font-medium text-ink-2 hover:bg-hover rounded-lg transition-colors">
                             取消
                         </button>
                         <button
                                 @click="submitChangePwd()"
                                 :disabled="changePwdForm.loading || !changePwdForm.oldPwd || !changePwdForm.newPwd || changePwdForm.newPwd !== changePwdForm.confirmPwd || changePwdForm.newPwd.length < 5"
-                                class="px-5 py-2.5 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center min-w-[100px]"
+                                class="px-5 py-2.5 bg-accent hover:bg-accent-strong disabled:bg-surface3 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors flex items-center justify-center min-w-[100px]"
                         >
                             <span x-show="!changePwdForm.loading">确认修改</span>
                             <span x-show="changePwdForm.loading" class="flex items-center">
@@ -873,20 +1129,20 @@ cover: /assets/images/cover.jpg
          @keydown.escape.window="closeSiteGenerateModal()"
          class="fixed inset-0 z-[var(--z-normal-modal)] overflow-y-auto">
         <!-- 遮罩 -->
-        <div x-show="siteGenerateModalOpen" x-transition.opacity class="fixed inset-0 bg-black/40 backdrop-blur-sm"></div>
+        <div x-show="siteGenerateModalOpen" x-transition.opacity class="fixed inset-0 bg-scrim backdrop-blur-sm"></div>
         <!-- 弹窗主体 -->
         <div class="flex min-h-full items-center justify-center p-4">
             <div x-show="siteGenerateModalOpen" x-transition
-                 class="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+                 class="relative bg-surface rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
                 <!-- 标题栏 -->
-                <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                <div class="flex items-center justify-between px-6 py-4 border-b border-line-soft">
                     <div class="flex items-center space-x-3">
-                        <div class="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
-                            <i class="fas fa-globe text-blue-500"></i>
+                        <div class="w-10 h-10 rounded-full bg-accent-soft flex items-center justify-center">
+                            <i class="fas fa-globe text-accent"></i>
                         </div>
-                        <h3 class="text-lg font-bold text-gray-800">生成站点</h3>
+                        <h3 class="text-lg font-bold text-ink">生成站点</h3>
                     </div>
-                    <button @click="closeSiteGenerateModal()" class="p-2 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors">
+                    <button @click="closeSiteGenerateModal()" class="p-2 rounded-lg text-ink-4 hover:bg-hover hover:text-ink-2 transition-colors">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
@@ -895,47 +1151,47 @@ cover: /assets/images/cover.jpg
                     <!-- 生成说明 -->
                     <div class="mb-8">
                         <div class="flex justify-between items-center mb-3">
-                            <h4 class="text-sm font-semibold text-gray-700">关于站点生成</h4>
-                            <span class="text-xs text-gray-400">v2.1.0</span>
+                            <h4 class="text-sm font-semibold text-ink-2">关于站点生成</h4>
+                            <span class="text-xs text-ink-4">v2.1.0</span>
                         </div>
-                        <div class="space-y-3 text-sm text-gray-600">
+                        <div class="space-y-3 text-sm text-ink-2">
                             <p>此操作将启动完整的站点构建流程，系统会根据相关配置自动生成静态站点资源。</p>
                             <div class="flex items-start space-x-2">
-                                <i class="fas fa-info-circle text-blue-500 mt-0.5"></i>
-                                <p>构建过程将在后台执行，可以在输出目录的 <code class="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">build.log</code> 文件中查看详细的构建日志与进度。</p>
+                                <i class="fas fa-info-circle text-accent mt-0.5"></i>
+                                <p>构建过程将在后台执行，可以在输出目录的 <code class="px-1.5 py-0.5 bg-surface3 rounded text-xs font-mono">build.log</code> 文件中查看详细的构建日志与进度。</p>
                             </div>
                             <div class="flex items-start space-x-2">
-                                <i class="fas fa-file-alt text-blue-500 mt-0.5"></i>
-                                <p>若需要了解站点生成的配置规则与参数说明，请查阅游客文件夹内的 <code class="px-1.5 py-0.5 bg-gray-200 rounded text-xs font-mono">_site_config.example.yaml</code> 参考文档。</p>
+                                <i class="fas fa-file-alt text-accent mt-0.5"></i>
+                                <p>若需要了解站点生成的配置规则与参数说明，请查阅游客文件夹内的 <code class="px-1.5 py-0.5 bg-surface3 rounded text-xs font-mono">_site_config.example.yaml</code> 参考文档。</p>
                             </div>
                         </div>
                     </div>
                     <!-- 站点访问地址 -->
                     <div>
-                        <label class="text-sm font-medium text-gray-700 block mb-2">站点访问地址</label>
+                        <label class="text-sm font-medium text-ink-2 block mb-2">站点访问地址</label>
                         <div class="flex items-center space-x-2">
                             <input type="text" readonly
                                    :value="userSiteAccessUrl"
-                                   class="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-500 focus:outline-none"
+                                   class="flex-1 px-4 py-2.5 bg-surface2 border border-line rounded-xl text-sm text-ink-3 focus:outline-none"
                                    placeholder="生成完成后将在此处显示访问地址">
                             <button @click="window.open(userSiteAccessUrl, '_blank')"
                                     :disabled="!userSiteAccessUrl"
-                                    class="px-5 py-2.5 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white text-sm font-medium rounded-xl transition-colors">
+                                    class="px-5 py-2.5 bg-accent hover:bg-accent-strong disabled:bg-surface3 disabled:cursor-not-allowed text-white text-sm font-medium rounded-xl transition-colors">
                                 访问站点
                             </button>
                         </div>
-                        <p class="mt-2 text-xs text-gray-500">生成完成后，您可点击上方按钮预览您的站点。</p>
+                        <p class="mt-2 text-xs text-ink-3">生成完成后，您可点击上方按钮预览您的站点。</p>
                     </div>
                 </div>
                 <!-- 底部按钮 -->
-                <div class="px-6 py-4 border-t border-gray-100 flex justify-end space-x-3">
+                <div class="px-6 py-4 border-t border-line-soft flex justify-end space-x-3">
                     <button @click="closeSiteGenerateModal()"
-                            class="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-xl transition-colors">
+                            class="px-5 py-2.5 bg-surface3 hover:bg-hover text-ink-2 text-sm font-medium rounded-xl transition-colors">
                         取消
                     </button>
                     <button @click="startSiteGeneration().catch(() => {})"
                             :disabled="siteGenerateLoading"
-                            class="flex items-center justify-center space-x-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl transition-colors disabled:opacity-70 disabled:cursor-not-allowed min-w-[120px]">
+                            class="flex items-center justify-center space-x-2 px-5 py-2.5 bg-accent-strong hover:bg-accent-strong text-white text-sm font-medium rounded-xl transition-colors disabled:opacity-70 disabled:cursor-not-allowed min-w-[120px]">
                         <!-- 加载 Spinner -->
                         <svg x-show="siteGenerateLoading" class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -959,10 +1215,10 @@ cover: /assets/images/cover.jpg
          x-transition:leave="transition ease-in duration-150"
          x-transition:leave-start="opacity-100"
          x-transition:leave-end="opacity-0"
-         class="fixed inset-0 z-[var(--z-overlay)] flex items-center justify-center bg-gray-900/50 backdrop-blur-sm">
-        <div class="flex flex-col items-center space-y-4 bg-white px-8 py-6 rounded-2xl shadow-2xl">
-            <div class="w-8 h-8 border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin"></div>
-            <p class="text-sm font-medium text-gray-700" x-text="overlay.message"></p>
+         class="fixed inset-0 z-[var(--z-overlay)] flex items-center justify-center bg-scrim backdrop-blur-sm">
+        <div class="flex flex-col items-center space-y-4 bg-surface px-8 py-6 rounded-2xl shadow-2xl">
+            <div class="w-8 h-8 border-4 border-line border-t-blue-500 rounded-full animate-spin"></div>
+            <p class="text-sm font-medium text-ink-2" x-text="overlay.message"></p>
         </div>
     </div>
 </template>
@@ -970,17 +1226,6 @@ cover: /assets/images/cover.jpg
 <!-- ============================
      [SCRIPT] 应用逻辑
      ============================ -->
-<script defer>
-    document.addEventListener('alpine:init', () => {
-        marked.setOptions({
-            gfm: true,
-            breaks: true,
-            sanitize: false,
-            smartLists: true,
-            smartypants: true
-        });
-    });
-</script>
 <script>
     document.addEventListener('alpine:init', () => {
         Alpine.data('notebookApp', () => ({
@@ -990,6 +1235,11 @@ cover: /assets/images/cover.jpg
 
             viewMode: 'split',
             sidebarCollapsed: false,
+
+            // ---- [Theme] 'light' | 'dark' ----
+            // 初值直接读 <html data-theme>，与 head 里的防闪烁脚本保持单一数据源
+            theme: document.documentElement.getAttribute('data-theme') || 'light',
+            _themeAnimTimer: null,
 
             currentFile: null,          // {id, base, version, baseContent, fmStatus, fmLog}
             editorContent: '',
@@ -1023,6 +1273,11 @@ cover: /assets/images/cover.jpg
             siteGenerateLoading: false,
 
             init() {
+                // 应用主题（instant=true：首屏不要过渡动画）
+                this.applyTheme(true);
+                // 主题变化时重发一次预览，让 iframe 里的 render.html 跟上配色
+                this.$watch('theme', () => this._doSyncPreview());
+
                 try {
                     const email = this.currentUserEmail;
                     const [username, domain] = email.split('@');
@@ -1275,7 +1530,7 @@ cover: /assets/images/cover.jpg
                                 this.currentFile.fmStatus = null;
                                 this.currentFile.fmLog = '';
                             }
-                        } else  if (isImageType(filepath)) {
+                        } else if (isImageType(filepath)) {
                             const rendered = renderMarkdown(pureInput, filepath, this.username, this.domain);
                             contentToSend = rendered.html;
                             if (this.currentFile) {
@@ -1284,10 +1539,10 @@ cover: /assets/images/cover.jpg
                             }
                         } else {
                             // 其他类型（图片/二进制等）：保持原有逻辑
-                            contentToSend = `<div class="text-gray-500 p-4">不支持预览的文件类型</div>`;
+                            contentToSend = `<div class="preview-placeholder">不支持预览的文件类型</div>`;
                         }
                     } catch (e) {
-                        contentToSend = `<div class="text-red-500 p-4">渲染失败: ${escapeHtml(e.message)}</div>`;
+                        contentToSend = `<div class="preview-error">渲染失败: ${escapeHtml(e.message)}</div>`;
                     }
 
                     if (!this.previewReady) return;
@@ -1302,9 +1557,29 @@ cover: /assets/images/cover.jpg
                         path: this.currentFile?.id || '',
                         username: this.username,
                         domain: this.domain,
+                        theme: this.theme,   // 供 render.html 同步配色
                     }, '*');
                 }, 300);
             },
+            // ============================
+            // [Theme] 主题切换
+            // ============================
+            applyTheme(instant) {
+                const root = document.documentElement;
+                if (!instant) {
+                    // 过渡只在切换瞬间挂上，260ms 后摘掉（常驻会拖慢大 DOM）
+                    root.classList.add('theme-anim');
+                    clearTimeout(this._themeAnimTimer);
+                    this._themeAnimTimer = setTimeout(() => root.classList.remove('theme-anim'), 260);
+                }
+                root.setAttribute('data-theme', this.theme);
+                localStorage.setItem('notebook_theme', this.theme);
+            },
+            toggleTheme() {
+                this.theme = this.theme === 'dark' ? 'light' : 'dark';
+                this.applyTheme();
+            },
+
             // ============================
             // [Editor] 编辑框方法
             // ============================
@@ -1414,7 +1689,7 @@ cover: /assets/images/cover.jpg
                     selectedItem: null,
                     loading: true,
                     diffLoading: false,
-                    diffHtml: '<div class="text-gray-400 text-sm p-4">请在左侧选择一个版本查看差异</div>'
+                    diffHtml: '<div class="text-ink-4 text-sm p-4">请在左侧选择一个版本查看差异</div>'
                 };
 
                 // 请求历史列表
@@ -1431,7 +1706,7 @@ cover: /assets/images/cover.jpg
                     })
                     .catch(e => {
                         this.showToast(e.message || '获取历史失败', 'error');
-                        this.historyDialog.diffHtml = `<div class="text-red-400 text-sm p-4">加载失败: ${escapeHtml(e.message)}</div>`;
+                        this.historyDialog.diffHtml = `<div class="text-danger text-sm p-4">加载失败: ${escapeHtml(e.message)}</div>`;
                     })
                     .finally(() => {
                         this.historyDialog.loading = false;
@@ -1466,7 +1741,7 @@ cover: /assets/images/cover.jpg
                     })
                     .catch(e => {
                         console.error('[DEBUG] diff 请求失败:', e);
-                        this.historyDialog.diffHtml = `<div class="text-red-400 text-sm p-4">加载差异失败: ${escapeHtml(e.message)}</div>`;
+                        this.historyDialog.diffHtml = `<div class="text-danger text-sm p-4">加载差异失败: ${escapeHtml(e.message)}</div>`;
                     })
                     .finally(() => {
                         this.historyDialog.diffLoading = false;

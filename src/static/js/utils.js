@@ -404,7 +404,8 @@ function renderMarkdown(content, filePath, username, domain) {
     const baseDir = filePath.split('/').slice(0, -1).join('/');
 
     // 自定义 Renderer 处理图片路径
-    const renderer = new marked.Renderer();
+    const renderer = {};
+
     const originalImage = renderer.image;
 
     // ✅ 核心修正：用对象解构接收参数
@@ -415,6 +416,12 @@ function renderMarkdown(content, filePath, username, domain) {
         const alt = rawAlt || '';
         const finalTitle = rawTitle || '';
 
+        // 处理 _style 自定义属性
+        const styleRegex = /powerstyle=\{(.*?)\}/;
+        const styleMatch = alt.match(styleRegex);
+        const styleValue = styleMatch ? styleMatch[1] : '';
+        const cleanAlt = alt.replace(styleRegex, '').trim();
+
         // 白名单：不处理的 URL 模式
         if (!href ||
             /^(https?:)?\/\//i.test(href) ||
@@ -422,41 +429,115 @@ function renderMarkdown(content, filePath, username, domain) {
             href.startsWith('blob:') ||
             href.startsWith('file:')
         ) {
-            // ✅ 修正：调用原有 renderer 时直接传原 token，不用拆参数
-            return originalImage.call(renderer, token);
+            return `<img src="${href}" alt="${cleanAlt}" title="${finalTitle}" loading="lazy" style="${styleValue}">`;
         }
-
-        // 处理 _style 自定义属性
-        const styleRegex = /_style=\{(.*?)\}/;
-        const styleMatch = alt.match(styleRegex);
-        const styleValue = styleMatch ? styleMatch[1] : '';
-        const cleanAlt = alt.replace(styleRegex, '').trim();
-
         // 拼接绝对路径
-        let absolutePath;
-        if (href.startsWith('/')) {
-            absolutePath = href;
-        } else {
-            absolutePath = resolveRelativePath(baseDir, href);
+        const absolutePath = href.startsWith('/') ? href : resolveRelativePath(baseDir, href);
+        const fullUrl = `/notebook/img_preview/${username}/${domain}${absolutePath}`;
+        return `<img src="${fullUrl}" alt="${cleanAlt}" title="${finalTitle}" loading="lazy" style="${styleValue}">`;
+    };
+
+    renderer.blockquote = function (token) {
+        let body = this.parser.parse(token.tokens);
+        // 只替换 <p>...</p> 内部的换行；标签之间的换行保持不动，否则块之间会多空行
+        body = body.replace(/<p>([\s\S]*?)<\/p>/g,
+            (mm, inner) => '<p>' + inner.replace(/\n/g, '<br>\n') + '</p>');
+        return `<blockquote>\n${body}</blockquote>\n`;
+    };
+
+    renderer.code = function (token) {
+        const lang = (token.lang || '').trim();
+        const code = token.text || '';
+
+        let highlighted = code;
+        if (lang && hljs.getLanguage && hljs.getLanguage(lang)) {
+            try {
+                highlighted = hljs.highlight(code, { language: lang }).value;
+            } catch (_) { /* 高亮失败，降级用原始代码 */ }
+        } else if (hljs.highlightAuto) {
+            try {
+                highlighted = hljs.highlightAuto(code).value;
+            } catch (_) { /* 降级 */ }
         }
 
-        const fullUrl = `/notebook/img_preview/${username}/${domain}${absolutePath}`;
-
-        // 生成带错误处理和懒加载的 img 标签
-        return `<div class="image-preview">
-                <img src="${fullUrl}"
-                     alt="${cleanAlt}"
-                     title="${finalTitle}"
-                     loading="lazy"
-                     style="${styleValue}"
-                     onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-            </div>`;
+        const langClass = lang ? ` language-${lang}` : '';
+        return `<pre><code class="hljs${langClass}">${highlighted}</code></pre>\n`;
     };
+
+    // ============ KaTeX 扩展 ============
+    const escapeAttr = (s) => {
+        return String(s)
+            .replace(/&/g, '&amp;')
+            .replace(/"/g, '&quot;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+    };
+    const inlineMathExtension = {
+        name: 'inlineMath',
+        level: 'inline',
+        start(src) { return src.indexOf('$'); },
+        tokenizer(src) {
+            // 匹配 $...$，允许 LaTeX 命令（\command），排除转义的 \$ 和首尾空格
+            const match = src.match(/^\$(?!\s)((?:\\.|[^$\n])+?)(?<!\s)\$/);
+            if (match) {
+                return {
+                    type: 'inlineMath',
+                    raw: match[0],
+                    text: match[1].replace(/\\\$/g, '$'), // 把转义的 \$ 还原为 $
+                };
+            }
+        },
+        renderer(token) {
+            try {
+                return katex.renderToString(token.text, {
+                    displayMode: false,
+                    throwOnError: false,
+                });
+            } catch (e) {
+                return `<code class="math-error">${escapeAttr(token.text)}</code>`;
+            }
+        }
+    };
+    const blockMathExtension = {
+        name: 'blockMath',
+        level: 'block',
+        start(src) { return src.indexOf('$$'); },
+        tokenizer(src) {
+            // 匹配 $$...$$，支持多行
+            const match = src.match(/^\$\$([\s\S]+?)\$\$/);
+            if (match) {
+                return {
+                    type: 'blockMath',
+                    raw: match[0],
+                    text: match[1].trim(),
+                };
+            }
+        },
+        renderer(token) {
+            usedMath = true;
+            try {
+                return '<p>' + katex.renderToString(token.text, {
+                    displayMode: true,
+                    throwOnError: false,
+                }) + '</p>\n';
+            } catch (e) {
+                return `<pre class="math-error">${escapeAttr(token.text)}</pre>\n`;
+            }
+        }
+    };
+    // ========== KaTeX 扩展 END ==========
 
     // 渲染 Markdown
     // 首先提取 FM 的部分
     const fmResult = _parseFrontMatter(content);
-    const rawHtml = marked.parse(fmResult.content, { renderer });
+    const instance = new marked.Marked({
+        gfm: true,
+        breaks: true,
+        renderer,
+    });
+    instance.use({ extensions: [inlineMathExtension, blockMathExtension] });
+
+    const rawHtml = instance.parse(fmResult.content);
 
     const html = DOMPurify.sanitize(rawHtml, {
         ADD_TAGS: ['img'],
@@ -469,15 +550,6 @@ function renderMarkdown(content, filePath, username, domain) {
 }
 
 /* ==================== 编辑器核心工具函数（新增部分） ==================== */
-/**
- * 判断当前文件是否支持文本编辑
- * @param {string} fileId - 文件ID（路径）
- * @returns {boolean}
- */
-function nb_isTextEditable(fileId) {
-    return isTextType(fileId || '');
-}
-
 /**
  * 获取编辑器当前选区位置
  * @param {HTMLTextAreaElement} editor - textarea DOM实例
@@ -515,19 +587,6 @@ function nb_editorKeydownHandler(event, ctx) {
     if (event.key === 'Enter' && !event.isComposing) {
         event.preventDefault();
         nb_handleEditorEnter(editor);
-        return;
-    }
-
-    // 3. 配对字符：自动包裹选中文本（支持 " ' ` ( ) [ ] { }）
-    const PAIR_CHARS = {
-        '"': '"', "'": "'", '`': '`',
-        '(': ')', ')': '(',
-        '[': ']', ']': '[',
-        '{': '}', '}': '{'
-    };
-    if (PAIR_CHARS[event.key] && !event.isComposing) {
-        event.preventDefault();
-        nb_handleEditorPairChar(event, editor, PAIR_CHARS[event.key]);
         return;
     }
 }
@@ -607,26 +666,4 @@ function nb_handleEditorEnter(editor) {
 
     // 插入换行+缩进，浏览器自动记录到撤销栈
     document.execCommand('insertText', false, LINE_BREAK + indent);
-}
-
-/**
- * 处理配对字符自动包裹（完全兼容原生撤销栈）
- * @param {KeyboardEvent} event - 键盘事件对象
- * @param {HTMLTextAreaElement} editor - textarea DOM实例
- * @param {string} closeChar - 对应的闭合字符
- */
-function nb_handleEditorPairChar(event, editor, closeChar) {
-    const openChar = event.key;
-    const { start, end } = nb_getEditorSelection(editor);
-
-    if (start === end) {
-        // 无选中文本：插入配对字符，光标停在中间
-        document.execCommand('insertText', false, openChar + closeChar);
-        // 移动光标到两个字符中间（仅移动光标，不修改内容，不影响撤销栈）
-        editor.setSelectionRange(start + 1, start + 1);
-    } else {
-        // 有选中文本：包裹选中内容，光标停在末尾
-        const selectedText = editor.value.slice(start, end);
-        document.execCommand('insertText', false, openChar + selectedText + closeChar);
-    }
 }

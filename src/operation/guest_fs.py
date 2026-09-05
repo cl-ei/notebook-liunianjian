@@ -12,6 +12,7 @@ VALID_ROOT_OBJ = (
     "/guest",
     "/README.md",
     "/_site_config.example.yaml",
+    "/格式测试.md",
 )
 
 
