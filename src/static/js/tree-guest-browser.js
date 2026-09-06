@@ -86,32 +86,35 @@ document.addEventListener('alpine:init', () => {
             const isFocused = this.focusedNodeId === node.id && !isSelected;
             const isDragHover = this.dragHoverNodeId === node.id;
 
-            let iconClass = 'fas fa-file text-gray-400';
+            // 图标色全部走主题 token：夜间会自动降饱和，不用在这里判断主题
+            let iconClass = 'fas fa-file text-ink-4';
             if (isDir) {
-                iconClass = node.expanded ? 'fas fa-folder-open text-amber-400' : 'fas fa-folder text-amber-500';
+                iconClass = (node.expanded ? 'fas fa-folder-open' : 'fas fa-folder') + ' text-icon-folder';
             } else if (isMarkdownType(node.text)) {
-                iconClass = 'fas fa-file-alt text-blue-400';
+                iconClass = 'fas fa-file-alt text-icon-md';
             } else if (isImageType(node.text)) {
-                iconClass = 'fas fa-file-image text-pink-400';
+                iconClass = 'fas fa-file-image text-icon-image';
             } else if (/\.(js|ts|py|java|cpp|go|rs|json|xml|yaml|yml|css|html)$/i.test(node.text)) {
-                iconClass = 'fas fa-file-code text-green-500';
+                iconClass = 'fas fa-file-code text-icon-code';
             }
 
             let rowClass = 'group flex items-center px-1 py-1 cursor-pointer rounded-md transition-colors ';
             if (isSelected) {
-                rowClass += 'bg-blue-50 text-blue-600 font-medium ';
+                rowClass += 'bg-accent-soft text-accent font-medium ';
             } else {
-                rowClass += 'text-gray-700 ';
+                rowClass += 'text-ink-2 ';
 
+                // 拖拽：源节点与悬停目标共用同一块高亮
                 if (this.dragging && this.dragNode?.id === node.id) {
-                    rowClass += 'bg-blue-300 ';
+                    rowClass += 'bg-drag ';
                 }
                 if (isDragHover) {
-                    rowClass += 'bg-blue-300 hover:none ';
-                }else if (isFocused) {
-                    rowClass += 'bg-gray-100 hover:bg-gray-200 '
+                    rowClass += 'bg-drag ';
+                } else if (isFocused) {
+                    // 已聚焦行再悬停 → 深一档，和未聚焦的悬停区分开
+                    rowClass += 'bg-hover hover:bg-hover-strong ';
                 } else {
-                    rowClass += 'hover:bg-gray-100 ';
+                    rowClass += 'hover:bg-hover ';
                 }
             }
             rowClass = rowClass.replace(/\s+/g, ' ').trim();
@@ -125,7 +128,7 @@ document.addEventListener('alpine:init', () => {
                 >`;
 
             if (isDir) {
-                html += `<button class="mr-1.5 text-gray-300 group-hover:text-gray-500 transition-transform duration-200 flex-shrink-0 w-3 h-3 flex items-center justify-center ${node.expanded ? 'rotate-90 text-blue-400' : ''}" data-action="toggle"><i class="fas fa-chevron-right text-[10px]"></i></button>`;
+                html += `<button class="mr-1.5 text-ink-4 group-hover:text-ink-3 transition-transform duration-200 flex-shrink-0 w-3 h-3 flex items-center justify-center ${node.expanded ? 'rotate-90 text-accent' : ''}" data-action="toggle"><i class="fas fa-chevron-right text-[10px]"></i></button>`;
             } else {
                 html += `<div class="w-3 mr-1.5 flex-shrink-0"></div>`;
             }
@@ -141,7 +144,7 @@ document.addEventListener('alpine:init', () => {
             if (isDir && node.expanded) {
                 html += `<div class="node-children">`;
                 if (node.loading) {
-                    html += `<div style="padding-left: ${indent + 14}px;" class="py-1.5 text-xs text-gray-400">加载中...</div>`;
+                    html += `<div style="padding-left: ${indent + 14}px;" class="py-1.5 text-xs text-ink-4">加载中...</div>`;
                 } else if (node.children?.length) {
                     node.children.forEach(child => {
                         html += this.generateNodeHtml(child, depth + 1);
@@ -303,12 +306,12 @@ document.addEventListener('alpine:init', () => {
                 this.dragGhost.className = `
                         fixed z-[100]
                         px-3 py-1.5
-                        bg-white
-                        text-gray-800
+                        bg-surface
+                        text-ink
                         text-sm
                         rounded-lg
                         shadow-xl
-                        ring-1 ring-gray-200
+                        ring-1 ring-line
                         pointer-events-none
                         select-none
                         opacity-95
