@@ -194,7 +194,7 @@
             --c-surface:     #212326;
             --c-surface-2:   #1d1f21;
             --c-surface-3:   #2b2e33;
-            --c-editor:      #35383d;   /* 比面板亮一档 */
+            --c-editor:      #282b2e;   /* 比面板亮一档 */
             --c-hover:       #2f3338;
             --c-hover-strong: #3a4046;
             --c-drag:        rgba(91, 156, 248, .32);  /* 半透明比实色更贴合深底 */
@@ -322,7 +322,7 @@
         /* ========== 编辑器 · 主题细节 ==========
            暗色模式最容易漏的三个：光标、选区、placeholder
            光标尤其致命——不设 caret-color，它在深底上会变成黑光标，几乎看不见 */
-        textarea.editor { caret-color: var(--c-caret); }
+        textarea.editor { caret-color: var(--c-caret); background: var(--c-editor)}
         textarea.editor::placeholder { color: var(--c-text-4); }
         textarea.editor::selection { background: var(--c-selection); color: inherit; }
         ::selection { background: var(--c-selection); }
